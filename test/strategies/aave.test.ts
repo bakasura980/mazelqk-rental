@@ -137,7 +137,7 @@ describe("Aave Strategy", function () {
       strategyAave.connect(signers[1]).claimRewards({
         gasLimit: 1200000,
       })
-    ).to.be.revertedWith("SA_IN_COOLDOWN_PERIOD");
+    ).to.be.revertedWith("StrategyAave: in cooldown period");
   });
 
   it("Should return the correct lending pool address", async function () {
