@@ -1,0 +1,47 @@
+name: Run Tests
+
+on: [pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+
+      - name: Cache node_modules
+        uses: actions/cache@v2
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+      - name: Cache hardhat cache folder
+        uses: actions/cache@v2
+        with:
+          path: cache
+          key: ${{ runner.os }}-node-${{ hashFiles('**/hardhat.config.ts') }}
+
+      - name: Reconfigure git to use HTTP authentication
+        run: >
+          git config --global url."https://github.com/".insteadOf
+          ssh://git@github.com/
+
+      - name: run tests with coverage
+        run: |
+          npm install
+          npm run build
+          npm run coverage
+        env:
+          MAINNET_KEY: ${{ secrets.MAINNET_KEY }}
+
+      - name: report code coverage
+        uses: zgosalvez/github-actions-report-lcov@v1
+        with:
+          coverage-files: coverage/*.info
+          minimum-coverage: 90
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
