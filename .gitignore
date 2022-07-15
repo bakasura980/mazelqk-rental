@@ -6,6 +6,8 @@ typechain
 typechain-types
 solc-static-linux
 
+package-lock.json
+
 #Hardhat files
 cache
 artifacts
