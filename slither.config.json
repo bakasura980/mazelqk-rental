@@ -1,0 +1,8 @@
+{
+    "detectors_to_run": "dead-code",
+    "detectors_to_exclude": "dead-code,reentrancy-benign,reentrancy-eth,reentrancy-events, reentrancy-unlimited-gas,reentrancy-no-eth,divide-before-multiply,locked-ether",
+    "exclude_informational": false,
+    "exclude_low": false,
+    "exclude_medium": false,
+    "exclude_high": false
+}
