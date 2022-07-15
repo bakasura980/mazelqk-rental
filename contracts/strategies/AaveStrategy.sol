@@ -21,19 +21,22 @@ contract StrategyAave is IAaveStrategy, Ownable {
     IWETHGateway private wethGateway;
     IProtocolDataProvider private dataProvider;
     IAaveIncentivesController private incentivesController;
+    address private ethAddress;
 
     constructor(
-        address poolAddress,
-        address wethGatewayAddress,
-        address dataProviderAddress,
-        address incentivesControllerAddress
+        address _poolAddress,
+        address _wethGatewayAddress,
+        address _dataProviderAddress,
+        address _incentivesControllerAddress,
+        address _ethAddress
     ) Ownable() {
-        pool = IAaveLendingPool(poolAddress);
-        wethGateway = IWETHGateway(wethGatewayAddress);
-        dataProvider = IProtocolDataProvider(dataProviderAddress);
+        pool = IAaveLendingPool(_poolAddress);
+        wethGateway = IWETHGateway(_wethGatewayAddress);
+        dataProvider = IProtocolDataProvider(_dataProviderAddress);
         incentivesController = IAaveIncentivesController(
-            incentivesControllerAddress
+            _incentivesControllerAddress
         );
+        ethAddress = _ethAddress;
     }
 
     function deposit() public payable override onlyOwner {
@@ -62,9 +65,8 @@ contract StrategyAave is IAaveStrategy, Ownable {
     }
 
     function supplyBalance() public view override returns (uint256) {
-        address wethAddress = wethGateway.getWETHAddress();
         (address aToken, , ) = dataProvider.getReserveTokensAddresses(
-            wethAddress
+            ethAddress
         );
 
         return IERC20(aToken).balanceOf(address(this));
@@ -106,7 +108,7 @@ contract StrategyAave is IAaveStrategy, Ownable {
             wethAddress
         );
 
-        address[] memory assets = new address[](2);
+        address[] memory assets = new address[](1);
         assets[0] = aSupplyToken;
 
         incentivesController.claimRewards(
