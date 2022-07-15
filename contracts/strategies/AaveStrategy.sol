@@ -10,7 +10,6 @@ import "../interfaces/Aave/IProtocolDataProvider.sol";
 import "../interfaces/Aave/IPriceOracle.sol";
 
 import "../libraries/TransferHelper.sol";
-import "../libraries/Errors.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -99,9 +98,7 @@ contract StrategyAave is IAaveStrategy, Ownable {
     }
 
     function claimRewards() external {
-        if (!canClaim()) {
-            revert Errors.SA_IN_COOLDOWN_PERIOD();
-        }
+        require(canClaim(), "StrategyAave: in cooldown period");
 
         address wethAddress = wethGateway.getWETHAddress();
         (address aSupplyToken, , ) = dataProvider.getReserveTokensAddresses(
@@ -120,9 +117,7 @@ contract StrategyAave is IAaveStrategy, Ownable {
     }
 
     function redeemRewards() public override onlyOwner {
-        if (!canRedeem()) {
-            revert Errors.SA_IN_COOLDOWN_PERIOD();
-        }
+        require(canRedeem(), "StrategyAave: in cooldown period");
 
         IStakedAave stakedRewardToken = IStakedAave(
             incentivesController.REWARD_TOKEN()
