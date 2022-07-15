@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "./Errors.sol";
-
 import "@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol";
 
 library TransferHelper {
@@ -14,9 +12,11 @@ library TransferHelper {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20Minimal.transfer.selector, to, value)
         );
-        if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
-            revert Errors.TH_SAFE_TRANSFER_FAILED();
-        }
+
+        require(
+            success && (data.length == 0 || abi.decode(data, (bool))),
+            "TransferHelper: safeTransfer failed"
+        );
     }
 
     function safeTransferFrom(
@@ -33,9 +33,11 @@ library TransferHelper {
                 value
             )
         );
-        if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
-            revert Errors.TH_SAFE_TRANSFER_FROM_FAILED();
-        }
+
+        require(
+            success && (data.length == 0 || abi.decode(data, (bool))),
+            "TransferHelper: safeTransferFrom failed"
+        );
     }
 
     /// @notice Approves the stipulated contract to spend the given allowance in the given token
@@ -51,15 +53,16 @@ library TransferHelper {
         (bool success, bytes memory data) = token.call(
             abi.encodeWithSelector(IERC20Minimal.approve.selector, to, value)
         );
-        if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
-            revert Errors.TH_SAFE_APPROVE();
-        }
+
+        require(
+            success && (data.length == 0 || abi.decode(data, (bool))),
+            "TransferHelper: safeApprove failed"
+        );
     }
 
     function safeTransferNative(address to, uint256 value) internal {
         (bool success, ) = to.call{value: value}(new bytes(0));
-        if (!success) {
-            revert Errors.TH_SAFE_TRANSFER_NATIVE_FAILED();
-        }
+
+        require(success, "TransferHelper: safeTransferNative failed");
     }
 }
