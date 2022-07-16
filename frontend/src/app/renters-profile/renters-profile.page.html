@@ -1,0 +1,59 @@
+<ion-header [translucent]="true">
+
+  <ion-toolbar>
+    <ion-title>{{ folder }}</ion-title>
+
+    <ion-buttons slot="primary">
+      <ion-button *ngIf="!currentAccount" fill="solid" color="primary" (click)="connect()">
+        <ion-icon name="flash-off-outline"></ion-icon>
+        Connect
+      </ion-button>
+
+      <ion-button *ngIf="currentAccount" fill="solid" color="primary">
+        <ion-icon name="flash-outline"></ion-icon>
+        {{ currentAccount }}
+      </ion-button>
+      <ion-button *ngIf="currentAccount" fill="solid" color="secondary">
+        <ion-icon name="wallet-outline"></ion-icon>
+        {{ balance }}
+      </ion-button>
+    </ion-buttons>
+
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- <div id="container"> -->
+  <div>
+
+    <ion-list>
+      <ion-item *ngFor="let car of cars">
+        <ion-avatar slot="start" size="large" class="item-avatar" >
+          <img  [src]="car.image" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ car.name }}</h2>
+          <h3>I'm a big deal</h3>
+          <p>Listen, I have a pretty good car...</p>
+        </ion-label>
+        <div>
+          <canvas baseChart
+            [type]="'pie'"
+            [datasets]="pieChartDatasets"
+            [labels]="pieChartLabels"
+            [options]="pieChartOptions"
+            [plugins]="pieChartPlugins"
+            [legend]="pieChartLegend">
+          </canvas>
+
+          <ion-button fill="solid" color="primary" (click)="rent(10)">
+            <ion-icon name="car-outline"></ion-icon>
+            Extend
+          </ion-button>
+        </div>
+      </ion-item>
+
+    </ion-list>
+
+  </div>
+</ion-content>
