@@ -66,6 +66,14 @@ describe("Ownership Token", function () {
     );
   });
 
+  it("Should revert for excessive amount", async function () {
+    let total = ethers.utils.parseEther("1");
+    await ownershipToken.connect(renter).receiveRent({ value: total });
+    let amount = total.mul(await ownershipToken.balanceOf(alice.address)).div(ethers.utils.parseEther("100")).mul(2);
+
+    await expect(ownershipToken.connect(alice).claim(alice.address, amount)).to.be.revertedWith("NOT_ENOUGH_TO_CLAIM");
+  });
+
 
 
 });
