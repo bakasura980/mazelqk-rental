@@ -18,7 +18,8 @@ import "./libraries/TransferHelper.sol";
 
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
-    uint256 private _perDayFactor; // Колко процента от цената на ден
+    // 0.01
+    uint256 private _perDayFactor;
     // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
@@ -157,10 +158,13 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     {
         _leaseData[tokenId].rent = msg.value - _carData[tokenId].collateral;
 
-        uint256 duration = (_leaseData[tokenId].rent /
-            _carData[tokenId].price) *
-            _perDayFactor *
-            1 days;
+        // uint256 duration = _leaseData[tokenId].rent /
+        //     (_carData[tokenId].price *
+        //     _perDayFactor * / 1e18) *
+        //     1 days;
+
+        uint256 duration = (_leaseData[tokenId].rent * 1 days * 1e18) /
+            (_carData[tokenId].price * _perDayFactor);
 
         if (duration == 0) {
             revert Errors.DURATION_TOO_LOW();
