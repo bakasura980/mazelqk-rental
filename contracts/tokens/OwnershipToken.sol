@@ -53,7 +53,7 @@ contract OwnershipToken is ERC20 {
     function _beforeTokenTransfer(
         address from,
         address to,
-        uint256 amount
+        uint256 /* amount */
     ) internal override {
         snapshot(from);
         snapshot(to);
@@ -64,7 +64,7 @@ contract OwnershipToken is ERC20 {
         userSnapshotTreasury[wallet] = _vault.carData(_carToken).treasury;
     }
 
-    function _calculateCurrent(address wallet) internal returns (uint256) {
+    function _calculateCurrent(address wallet) internal view returns (uint256) {
         uint256 shares = balanceOf(wallet);
         return
             ((_vault.carData(_carToken).treasury -
