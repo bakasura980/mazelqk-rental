@@ -9,11 +9,13 @@ import "./tokens/InterestToken.sol";
 import "./tokens/OwnershipToken.sol";
 import "./tokens/ERC721Consumable.sol";
 
+import "./interfaces/IVault.sol";
+
 import "./libraries/TransferHelper.sol";
 
 // Todo: Deploy interest token
 
-contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
+contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
     uint256 private _collateralFactor;
     uint256 private _perDayFactor;

@@ -4,10 +4,12 @@ pragma solidity ^0.8.14;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "../Vault.sol";
 
-contract OwnershipToken is ERC20 {
-    Vault private _vault;
+import "../interfaces/IVault.sol";
+import "../interfaces/tokens/IOwnershipToken.sol";
+
+contract OwnershipToken is ERC20, IOwnershipToken {
+    IVault private _vault;
     uint256 private _carToken;
 
     mapping(address => uint256) public userClaimed;
@@ -18,7 +20,7 @@ contract OwnershipToken is ERC20 {
     uint256 internal constant TOTAL_SHARES = 100e18;
 
     constructor(
-        Vault vault_,
+        IVault vault_,
         uint256 carToken_,
         address[] memory owners_,
         uint256[] memory shares_
