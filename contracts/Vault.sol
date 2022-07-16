@@ -47,13 +47,14 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         uint256[] calldata shares,
         string tokenURI
     ) external returns (uint256) {
+        // require owners < 10
         uint256 tokenId = _mint(address(this), _tokenCounter++);
 
         carData[tokenId].ownershipContract = new OwnershipToken(
             address(this),
             tokenId,
-            owners[i],
-            shares[i]
+            owners,
+            shares
         );
 
         // TODO maybe mint it to the ERC20 and approve ourselves to set the renter
