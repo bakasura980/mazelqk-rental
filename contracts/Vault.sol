@@ -18,7 +18,7 @@ import "./libraries/TransferHelper.sol";
 
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
-    uint256 private _perDayFactor; // Колко процента от цената на ден
+    uint256 private _perDayFactor;
     // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
