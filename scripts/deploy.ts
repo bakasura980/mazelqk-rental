@@ -28,20 +28,24 @@ async function main () {
 
   console.log("Vault deployed to:", vault.address);
 
-  vault.list(
-    [alice.address, bob.address, carl.address],
-    [
-      ethers.utils.parseEther("10"),
-      ethers.utils.parseEther("30"),
-      ethers.utils.parseEther("60"),
-    ],
-    ethers.utils.parseEther("50"),
-    "BARZATA_HONDA.JPG.JSON",
-    ethers.utils.parseEther("5"),
-    ethers.utils.parseEther("0.5"),
-    2 * 60 * 60 * 24, // 2 day for reviewing
-    insuranceDao.address
-  );
+  await (
+    await vault.list(
+      [alice.address, bob.address, carl.address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "BARZATA_HONDA.JPG.JSON",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.5"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      insuranceDao.address
+    )
+  ).wait();
+
+  await (await strategyAave.transferOwnership(vault.address)).wait();
 }
 
 // We recommend this pattern to be able to use async/await everywhere

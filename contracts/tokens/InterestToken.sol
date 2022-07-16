@@ -115,7 +115,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
     }
 
     /// @notice Calculates the accumulated balance of the user
-    /// @return userBalance The balance of the user including the interesst being accrued over time
+    /// @return userBalance The interesst being accrued over time
     function balanceOf(address account)
         public
         view
@@ -149,8 +149,6 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
 
         uint256 balancePrev = balanceAtIndex_;
         uint256 balanceNew = IEarnStrategy(earningsProvider).balanceOf();
-
-        require(balanceNew >= balancePrev, "NEGATIVE_ACCUMULATION");
 
         if (balancePrev > 0 && balancePrev < balanceNew) {
             // Increase the index proportionally to the balances:

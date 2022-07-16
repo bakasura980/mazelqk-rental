@@ -64,6 +64,8 @@ interface IVault {
 
     function carData(uint256 tokenId) external view returns (CarData memory);
 
+    function carLease(uint256 tokenId) external view returns (LeaseData memory);
+
     function list(
         address[] calldata owners,
         uint256[] calldata shares,

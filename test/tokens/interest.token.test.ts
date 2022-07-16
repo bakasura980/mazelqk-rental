@@ -29,10 +29,7 @@ describe("Interest Token", function () {
     const InterestTokenContract = await ethers.getContractFactory(
       "InterestToken"
     );
-    interestToken = await InterestTokenContract.deploy(
-      signers[0].address,
-      mockEarningsStrategy.address
-    );
+    interestToken = await InterestTokenContract.deploy(mockEarningsStrategy.address);
     await interestToken.deployed();
   });
 
@@ -46,8 +43,7 @@ describe("Interest Token", function () {
     it("Should initialize correctly", async function () {
       // ETH is with 18 decimals
       expect(await interestToken.decimals()).to.be.equal(18);
-      expect(await interestToken.vault()).to.be.equal(signers[0].address);
-      expect(await interestToken.earningsStrategy()).to.be.equal(
+      expect(await interestToken.earningsProvider()).to.be.equal(
         mockEarningsStrategy.address
       );
     });
@@ -57,20 +53,26 @@ describe("Interest Token", function () {
     it("Should fail to Mint tokens -> Not the Vault", async function () {
       await expect(
         interestToken.connect(signers[2]).mint(signers[2].address, 100)
-      ).to.be.revertedWith("InterestToken: ONLY_VAULT");
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("Should fail to Burn tokens -> Not the Vault", async function () {
       await expect(
-        interestToken.connect(signers[2]).burn(signers[2].address, 100)
-      ).to.be.revertedWith("InterestToken: ONLY_VAULT");
+        interestToken.connect(signers[2]).burnPrincipal(signers[2].address, 100)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
+
+      await expect(
+        interestToken.connect(signers[2]).burnInterest(signers[2].address, 100)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
 
     it("Should successfully mint and burn tokens", async function () {
       mockEarningsStrategy.balanceOf.returns(0);
 
       // user balance before mint -> 0
-      const balanceBefore = await interestToken.balanceOf(signers[2].address);
+      const balanceBefore = (
+        await interestToken.balanceOf(signers[2].address)
+      ).add(await interestToken.userPrincipal(signers[2].address));
       expect(balanceBefore).to.be.equal(0);
 
       // user mints 10 debt tokens
@@ -82,25 +84,27 @@ describe("Interest Token", function () {
       // user balance right after mint -> 10
       mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("10"));
 
-      const balanceAfter = await interestToken.balanceOf(signers[2].address);
+      const balanceAfter = (
+        await interestToken.balanceOf(signers[2].address)
+      ).add(await interestToken.userPrincipal(signers[2].address));
       expect(balanceAfter).to.be.equal(ethers.utils.parseEther("10"));
 
       // Earnings Provider accrued interest + principal after a while is 0.1 tokens -> 10 + 0.1
       mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("20.1"));
 
       // user burns 5 interest tokens
-      await interestToken.burn(
+      await interestToken.burnPrincipal(
         signers[2].address,
         ethers.utils.parseEther("5")
       );
 
-      // Burned 5 tokens are withdrawn from the Earnings Provider -> 10.1 - 5 - 0.3 = 4.8 principal + accrued interest
+      // Burned 5 tokens are withdrawn from the Earnings Provider -> 10.1 - 5 = 4.8 principal + accrued interest
       mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("15.1"));
 
       // user balance after burn with accrued interest
-      const balanceBurnAfter = await interestToken.balanceOf(
-        signers[2].address
-      );
+      const balanceBurnAfter = (
+        await interestToken.balanceOf(signers[2].address)
+      ).add(await interestToken.userPrincipal(signers[2].address));
       expect(balanceBurnAfter.toString().slice(0, 6)).to.be.equal("151000");
     });
 
@@ -108,21 +112,25 @@ describe("Interest Token", function () {
       const amount = ethers.utils.parseEther("5");
       await interestToken.mint(signers[2].address, amount);
 
-      await interestToken.burn(
+      mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("10"));
+
+      await interestToken.burnInterest(
         signers[2].address,
         ethers.utils.parseEther("10")
       );
 
+      mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("5"));
+
       // user balance after burn with accrued interest
-      const balanceBurnAfter = await interestToken.balanceOf(
-        signers[2].address
-      );
-      expect(balanceBurnAfter).to.be.equal("0");
+      const balanceBurnAfter = (
+        await interestToken.balanceOf(signers[2].address)
+      ).add(await interestToken.userPrincipal(signers[2].address));
+      expect(balanceBurnAfter).to.be.equal(amount);
     });
   });
 
   describe("Transfers", function () {
-    it("Should be able to transfer tokens between two accounts", async function () {
+    it("Should be able to transfer the interest only between two accounts", async function () {
       mockEarningsStrategy.balanceOf.returns(0);
 
       await interestToken.mint(
@@ -146,15 +154,19 @@ describe("Interest Token", function () {
 
       await interestToken
         .connect(signers[2])
-        .transfer(signers[3].address, "14926207769018757284");
+        .transfer(signers[3].address, ethers.utils.parseEther("7.426207769"));
 
-      const balance2 = await interestToken.balanceOf(signers[2].address);
-      const balance3 = await interestToken.balanceOf(signers[3].address);
-      expect(balance2).to.be.equal("0");
-      expect(balance3).to.be.equal("30168596330000000000");
+      const balance2 = (await interestToken.balanceOf(signers[2].address)).add(
+        await interestToken.userPrincipal(signers[2].address)
+      );
+      const balance3 = (await interestToken.balanceOf(signers[3].address)).add(
+        await interestToken.userPrincipal(signers[3].address)
+      );
+      expect(balance2).to.be.equal("7500000000018757185");
+      expect(balance3).to.be.equal("22668596329981242815");
     });
 
-    it("Should be able to transfer on behalf of another account", async function () {
+    it("Should be able to transfer interest on behalf of another account", async function () {
       mockEarningsStrategy.balanceOf.returns(0);
 
       await interestToken.mint(
@@ -166,7 +178,7 @@ describe("Interest Token", function () {
         .connect(signers[2])
         .approve(signers[3].address, ethers.utils.parseEther("7.5"));
 
-      mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("7.5"));
+      mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("15"));
 
       await interestToken
         .connect(signers[3])
@@ -176,7 +188,9 @@ describe("Interest Token", function () {
           ethers.utils.parseEther("7.5")
         );
 
-      const balance = await interestToken.balanceOf(signers[3].address);
+      const balance = (await interestToken.balanceOf(signers[3].address)).add(
+        await interestToken.userPrincipal(signers[3].address)
+      );
       expect(balance).to.be.equal(ethers.utils.parseEther("7.5"));
     });
 
@@ -185,13 +199,17 @@ describe("Interest Token", function () {
       await interestToken.mint(signers[2].address, amount);
       await interestToken.mint(signers[3].address, amount);
 
+      mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("20"));
+
       await interestToken
         .connect(signers[2])
         .transfer(signers[4].address, amount.mul(2));
 
-      expect(await interestToken.balanceOf(signers[4].address)).to.be.equal(
-        amount
-      );
+      expect(
+        (await interestToken.balanceOf(signers[4].address)).add(
+          await interestToken.userPrincipal(signers[4].address)
+        )
+      ).to.be.equal(amount);
 
       await interestToken
         .connect(signers[3])
@@ -201,9 +219,11 @@ describe("Interest Token", function () {
         .connect(signers[5])
         .transferFrom(signers[3].address, signers[5].address, amount.mul(2));
 
-      expect(await interestToken.balanceOf(signers[5].address)).to.be.equal(
-        amount
-      );
+      expect(
+        (await interestToken.balanceOf(signers[5].address)).add(
+          await interestToken.userPrincipal(signers[5].address)
+        )
+      ).to.be.equal(amount);
     });
 
     it("Should be reverted in case there is no allowance to transfer on behalf", async function () {
@@ -215,7 +235,7 @@ describe("Interest Token", function () {
             signers[2].address,
             ethers.utils.parseEther("10")
           )
-      ).to.be.revertedWith("InterestToken: NOT_ENOUGH_ALLOWANCE");
+      ).to.be.revertedWith("NOT_ENOUGH_ALLOWANCE");
     });
 
     it("Should be reverted in case of proceeding a transfer between the same addresses", async function () {
@@ -223,30 +243,28 @@ describe("Interest Token", function () {
         interestToken
           .connect(signers[3])
           .transfer(signers[3].address, ethers.utils.parseEther("7.5"))
-      ).to.be.revertedWith(
-        "InterestToken: TRANSFER_BETWEEN_THE_SAME_ADDRESSES"
-      );
+      ).to.be.revertedWith("TRANSFER_BETWEEN_THE_SAME_ADDRESSES");
     });
   });
 
   describe("Earnings strategy", async function () {
     it("Should set earnings strategy", async function () {
-      expect(await interestToken.earningsStrategy()).to.be.equal(
+      expect(await interestToken.earningsProvider()).to.be.equal(
         mockEarningsStrategy.address
       );
 
       const newStrategy = ethers.Wallet.createRandom().address;
-      await interestToken.setEarningsStrategy(newStrategy);
+      await interestToken.setEarningsProvider(newStrategy);
 
-      expect(await interestToken.earningsStrategy()).to.be.equal(newStrategy);
+      expect(await interestToken.earningsProvider()).to.be.equal(newStrategy);
     });
 
     it("Should fail to set lender strategy", async function () {
       await expect(
         interestToken
           .connect(signers[1])
-          .setEarningsStrategy(ethers.Wallet.createRandom().address)
-      ).to.be.revertedWith("InterestToken: ONLY_VAULT");
+          .setEarningsProvider(ethers.Wallet.createRandom().address)
+      ).to.be.revertedWith("Ownable: caller is not the owner");
     });
   });
 
@@ -268,7 +286,11 @@ describe("Interest Token", function () {
       );
 
       // User1 balance[Before Mint]
-      expect(await interestToken.balanceOf(user1)).to.be.equal(0);
+      expect(
+        (await interestToken.balanceOf(user1)).add(
+          await interestToken.userPrincipal(signers[1].address)
+        )
+      ).to.be.equal(0);
 
       // Total Supply  [Before Mint]
       expect(await interestToken.totalSupply()).to.be.equal(0);
@@ -280,9 +302,11 @@ describe("Interest Token", function () {
       await interestToken.mint(user1, ethers.utils.parseEther("5"));
 
       // User1 Balance  [After Mint]
-      expect(await interestToken.balanceOf(user1)).to.be.equal(
-        ethers.utils.parseEther("5")
-      );
+      expect(
+        (await interestToken.balanceOf(user1)).add(
+          await interestToken.userPrincipal(user1)
+        )
+      ).to.be.equal(ethers.utils.parseEther("5"));
 
       // Total Supply  [After Mint]
       expect(await interestToken.totalSupply()).to.be.equal(
@@ -307,7 +331,10 @@ describe("Interest Token", function () {
 
       // User1 Balance  [After Mint]
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("125000");
 
       /**
@@ -326,12 +353,18 @@ describe("Interest Token", function () {
 
       // User1 Balance
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("204011");
 
-      // User1 Balance  [Before Mint]
+      // User2 Balance  [Before Mint]
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("0");
 
       // User2 borrows 5 tokens
@@ -343,12 +376,18 @@ describe("Interest Token", function () {
 
       // User1 Balance  [After Mint]
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("204011");
 
       // User2 Balance  [After Mint]
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("500000");
 
       /**
@@ -367,12 +406,18 @@ describe("Interest Token", function () {
 
       // User1 Balance
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("332965"); // 33.2965
 
       // User2 Balance  [After Mint]
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("816044"); // 8.16044
     });
 
@@ -396,9 +441,11 @@ describe("Interest Token", function () {
       await interestToken.mint(user1, ethers.utils.parseEther("5"));
 
       // User1 Balance  [After Mint]
-      expect(await interestToken.balanceOf(user1)).to.be.equal(
-        ethers.utils.parseEther("5")
-      );
+      expect(
+        (await interestToken.balanceOf(user1)).add(
+          await interestToken.userPrincipal(user1)
+        )
+      ).to.be.equal(ethers.utils.parseEther("5"));
 
       // Total Supply  [After Mint]
       expect(await interestToken.totalSupply()).to.be.equal(
@@ -424,10 +471,16 @@ describe("Interest Token", function () {
       mockEarningsStrategy.balanceOf.returns(ethers.utils.parseEther("12.5"));
 
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("816047");
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("750000");
 
       // Total supply  [After Mint]
@@ -451,12 +504,18 @@ describe("Interest Token", function () {
 
       // User1 Balance
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("133186");
 
       // User2 Balance
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("122407");
 
       // User3 borrows 4 tokens
@@ -464,17 +523,26 @@ describe("Interest Token", function () {
 
       // User1 Balance
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("133186");
 
       // User2 Balance
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("122407");
 
       // User3 Balance
       expect(
-        (await interestToken.balanceOf(user3)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user3))
+          .add(await interestToken.userPrincipal(user3))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("400000");
 
       /**
@@ -510,22 +578,34 @@ describe("Interest Token", function () {
 
       // User1 Balance
       expect(
-        (await interestToken.balanceOf(user1)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user1))
+          .add(await interestToken.userPrincipal(user1))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("354773");
 
       // User2 Balance
       expect(
-        (await interestToken.balanceOf(user2)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user2))
+          .add(await interestToken.userPrincipal(user2))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("326059");
 
       // User3 Balance
       expect(
-        (await interestToken.balanceOf(user3)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user3))
+          .add(await interestToken.userPrincipal(user3))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("106549");
 
       // User4 Balance
       expect(
-        (await interestToken.balanceOf(user4)).toString().slice(0, 6)
+        (await interestToken.balanceOf(user4))
+          .add(await interestToken.userPrincipal(user4))
+          .toString()
+          .slice(0, 6)
       ).to.be.equal("163209");
     });
   });

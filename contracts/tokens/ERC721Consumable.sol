@@ -14,7 +14,7 @@ abstract contract ERC721Consumable is IERC165, IERC721Consumable {
 
     function changeConsumer(address consumer, uint256 tokenId) public {
         require(
-            msg.sender == ownerOf(tokenId),
+            msg.sender == ownerOf(tokenId) || address(this) == ownerOf(tokenId),
             "ConsumableAdapter: sender is not owner of tokenId"
         );
 

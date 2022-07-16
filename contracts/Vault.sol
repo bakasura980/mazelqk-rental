@@ -154,15 +154,10 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         onlyAvailable(tokenId)
     {
-        uint256 rent = msg.value - _carData[tokenId].collateral;
-        _leaseData[tokenId].rent = rent;
+        uint256 rentAmount = msg.value - _carData[tokenId].collateral;
+        _leaseData[tokenId].rent = rentAmount;
 
-        // uint256 duration = _leaseData[tokenId].rent /
-        //     (_carData[tokenId].price *
-        //     _perDayFactor * / 1e18) *
-        //     1 days;
-
-        uint256 duration = (rent * 1 days * 1e18) /
+        uint256 duration = (rentAmount * 1 days * 1e18) /
             (_carData[tokenId].price * _perDayFactor);
 
         if (duration == 0) {
@@ -184,7 +179,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         earningsProvider.deposit{value: _carData[tokenId].collateral}();
 
-        _carData[tokenId].ownershipContract.receiveRent{value: rent}();
+        _carData[tokenId].ownershipContract.receiveRent{value: rentAmount}();
 
         changeConsumer(msg.sender, tokenId);
 
@@ -408,8 +403,22 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     // --------------- Getters ---------------
-    function carData(uint256 tokenId) public view returns (CarData memory) {
+    function carData(uint256 tokenId)
+        external
+        view
+        override
+        returns (CarData memory)
+    {
         return _carData[tokenId];
+    }
+
+    function carLease(uint256 tokenId)
+        external
+        view
+        override
+        returns (LeaseData memory)
+    {
+        return _leaseData[tokenId];
     }
 
     function ownerOf(uint256 tokenId)
