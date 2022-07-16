@@ -1,4 +1,9 @@
-contract Vault is ERC721, IERC721Consumable {
+pragma solidity ^0.8.12;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "tokens/OwnershipToken.sol";
+
+contract Vault is ERC721Enumerable, IERC721Consumable {
     uint256 private _tokenCounter;
     uint256 private _collateralFactor;
     uint256 private _perDayFactor;
@@ -43,8 +48,7 @@ contract Vault is ERC721, IERC721Consumable {
         uint256 tokenId = _mint(address(this), _tokenCounter++);
 
         // require shares 100
-        // CarOwnership is ERC20 + rewards tracking
-        carData[tokenId].ownershipContract = new CarOwnership(
+        carData[tokenId].ownershipContract = new OwnershipToken(
             address(this),
             tokenId,
             owners[i],
@@ -182,21 +186,21 @@ contract Vault is ERC721, IERC721Consumable {
     }
 
     function unlist(uint256 tokenId, bytes[] calldata signatures) external {
-        require(carData[tokenId].status == CarStatus.AVAILABLE
-            || carData[tokenId].status == CarStatus.DAMAGED,
-            "SHITS IN USE");
+        require(
+            carData[tokenId].status == CarStatus.AVAILABLE ||
+                carData[tokenId].status == CarStatus.DAMAGED,
+            "SHITS IN USE"
+        );
 
         // message is tokenId + IVault.unlist.selector
 
         uint256 total;
-        for (uint256 i; i < signatures.length,) {
+        for (uint256 i; i < signatures.length; ) {
             // TODO recover address
             address signer;
 
             total += carData[tokenId].ownershipContract.balanceOf(signer);
-            uint256 amount = carData[tokenId].ownershipContract.distribution(
-                signer
-            );
+            uint256 amount = carData[tokenId].ownershipContract.claim(signer);
 
             _sendEth(signer, amount);
 
