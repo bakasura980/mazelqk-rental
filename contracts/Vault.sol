@@ -24,14 +24,15 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
     address public override earningsProvider;
 
     struct CarData {
-        address ownershipContract;
         bool available;
         uint256 price;
+        string tokenURI;
         // running total
         uint256 treasury;
         uint256 collateral;
         uint256 insuranceShare;
         address insuranceOperator;
+        address ownershipContract;
     }
 
     struct LeaseData {
@@ -52,8 +53,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
     mapping(uint256 => CarData) private _carData;
     mapping(uint256 => LeaseData) private _leaseData;
-
-    mapping(uint256 => string) private _tokenURIs;
 
     modifier onlyAvailable(uint256 tokenId) {
         require(consumerOf(tokenId) == address(0), "Vault: ALREADY_RENTED");
@@ -111,21 +110,21 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         return ERC721.ownerOf(tokenId);
     }
 
-    function tokenURI(uint256 tokenId_)
+    function tokenURI(uint256 tokenId)
         public
         view
         override
         returns (string memory)
     {
-        require(_exists(tokenId_), "no");
-        return _tokenURIs[tokenId_];
+        require(_exists(tokenId), "no");
+        return carData[tokenId].tokenURI;
     }
 
     function list(
         address[] calldata owners,
         uint256[] calldata shares,
-        string tokenUri,
         uint256 price,
+        string tokenUri,
         uint256 collateral,
         uint256 insuranceShare,
         address insuranceOperator
@@ -145,9 +144,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
             shares
         );
 
-        _tokenURIs[tokenId] = tokenUri;
-
         _carData[tokenId].price = price;
+        _carData[tokenId].tokenURI = tokenUri;
         _carData[tokenId].collateral = collateral;
         _carData[tokenId].insuranceShare = (collateral * insuranceShare) / 1e18;
         _carData[tokenId].insuranceOperator = insuranceOperator;
