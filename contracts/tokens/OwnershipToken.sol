@@ -1,10 +1,11 @@
 pragma solidity ^0.8.12;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
 
 contract OwnershipToken is ERC20 {
     address private _vault;
-    address private _carToken;
+    uint256 private _carToken;
     mapping(address => uint256) treasuryIndex;
 
     mapping(address => uint256) userClaimed;
@@ -16,10 +17,18 @@ contract OwnershipToken is ERC20 {
 
     constructor(
         address vault_,
-        address carToken_,
+        uint256 carToken_,
         address[] owners_,
         uint256[] shares_
-    ) {
+    )
+        ERC20(
+            abi.encodePacked(
+                "Car ownership token ",
+                Strings.toString(carToken_)
+            ),
+            abi.encodePacked("C", Strings.toString(carToken_))
+        )
+    {
         require(owners_.length == shares_.length, "negramotnik");
 
         for (uint256 i; i < owners.length; ) {
@@ -61,11 +70,13 @@ contract OwnershipToken is ERC20 {
 
     function claimable(address wallet) public view returns (uint256) {
         return
-            userClaimed[wallet] -
-            (userSnapshotClaimable[wallet] + _calculateCurrent(wallet));
+            userSnapshotClaimable[wallet] +
+            _calculateCurrent(wallet) -
+            userClaimed[wallet];
     }
 
     function claim(address wallet) public returns (uint256) {
+        // snapshot(wallet); not needed?
         uint256 amount = claimable(wallet);
         userClaimed[wallet] += amount;
         return amount;

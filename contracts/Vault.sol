@@ -7,6 +7,8 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
     uint256 private _tokenCounter;
     uint256 private _collateralFactor;
     uint256 private _perDayFactor;
+    // 0.01
+    uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
     struct CarData {
         address ownershipContract;
@@ -47,7 +49,6 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
     ) external returns (uint256) {
         uint256 tokenId = _mint(address(this), _tokenCounter++);
 
-        // require shares 100
         carData[tokenId].ownershipContract = new OwnershipToken(
             address(this),
             tokenId,
@@ -61,8 +62,8 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
 
     function liquidate(uint256 tokenId) external {
         require(block.timestamp > leaseData[tokenId].end, "not expired");
-        // TODO fix math
-        uint256 incentive = leaseData[tokenId].collateral * 0.01;
+        uint256 incentive = (leaseData[tokenId].collateral * INCENTIVE_FACTOR) /
+            1e18;
         _sendEth(msg.sender, incentive);
         leaseData[tokenId].collateral -= incentive;
         _setHealth(tokenId, 0);
@@ -117,9 +118,11 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         leaseData[tokenId].status = CarStatus.RETURNED;
         leaseData[tokenId].returned = block.timestamp;
 
-        // TODO fix math
-        uint256 actualRent = leaseData[tokenId].rent *
-            (block.timestamp / leaseData[tokenId].end);
+        uint256 maxDuration = leaseData[tokenId].end - leaseData[tokenId].start;
+        uint256 actualDuration = leaseData[tokenId].returned -
+            leaseData[tokenId].start;
+        uint256 actualRent = (leaseData[tokenId].rent * actualDuration) /
+            maxDuration;
 
         carData[tokenId].treasury += actualRent;
 
@@ -137,21 +140,23 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
     }
 
     function claim(uint256 tokenId) external {
-        uint256 shares = carData[tokenId].ownershipContract.balanceOf(
-            msg.sender
-        );
-        require(shares > 0, "not an owner");
+        // it'll just be 0, let them waste gas
+        // uint256 shares = carData[tokenId].ownershipContract.balanceOf(
+        //     msg.sender
+        // );
+        // require(shares > 0, "not an owner");
 
-        // (treasury - treasuryLast) * shares
-        uint256 amount = carData[tokenId].ownershipContract.claimableFunds(
+        uint256 amount = carData[tokenId].ownershipContract.claim(
             carData[tokenId].treasury,
             msg.sender
         );
 
-        (bool success, bytes memory returndata) = msg.sender.call{
-            value: amount
-        }("");
-        require(success, string(returndata));
+        if (amount > 0) {
+            (bool success, bytes memory returndata) = msg.sender.call{
+                value: amount
+            }("");
+            require(success, string(returndata));
+        }
     }
 
     function damageReport(uint256 tokenId, uint256 health) external onlyDao {
@@ -209,7 +214,10 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
             }
         }
 
-        require(total == 100, "EVERYONE!!!.gif");
+        require(
+            total == carData[tokenId].ownershipContract.totalSupply(),
+            "EVERYONE!!!.gif"
+        );
 
         _burn(tokenId);
     }
