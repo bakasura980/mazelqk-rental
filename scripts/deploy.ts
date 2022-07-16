@@ -6,7 +6,7 @@
 import { ethers } from "hardhat";
 import * as utils from "../utils";
 
-async function main () {
+async function main() {
   const [owner, alice, bob, carl, insuranceDao] = await ethers.getSigners();
 
   const strategyAave = await (
@@ -25,10 +25,14 @@ async function main () {
       await ethers.getContractFactory("Vault")
     ).deploy(strategyAave.address, ethers.utils.parseEther("0.01"))
   ).deployed();
+  // const vault = await (
+  //   await ethers.getContractFactory("Vault")
+  // ).attach("0x2Bb919fd37169d34cbaD2C8d0fE23a32a5067028");
 
+  console.log("current block", await ethers.provider.getBlockNumber());
   console.log("Vault deployed to:", vault.address);
 
-  vault.list(
+  const tx = await vault.list(
     [alice.address, bob.address, carl.address],
     [
       ethers.utils.parseEther("10"),
@@ -42,6 +46,8 @@ async function main () {
     2 * 60 * 60 * 24, // 2 day for reviewing
     insuranceDao.address
   );
+
+  await tx.wait();
 }
 
 // We recommend this pattern to be able to use async/await everywhere

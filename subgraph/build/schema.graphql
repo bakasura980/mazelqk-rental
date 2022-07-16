@@ -1,0 +1,14 @@
+enum CarStatus {
+  	Available
+  	Rented
+	Returned
+	Damaged
+	Unlisted
+}
+
+type Car @entity {
+	id: ID!
+	renter: Bytes
+	insuranceOperator: Bytes!
+	status: CarStatus!
+}

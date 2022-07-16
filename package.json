@@ -61,6 +61,7 @@
   },
   "dependencies": {
     "@chainlink/contracts": "^0.4.1",
+    "@openzeppelin/subgraphs": "^0.1.8-5",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.0",
     "hardhat-contract-sizer": "^2.5.1"

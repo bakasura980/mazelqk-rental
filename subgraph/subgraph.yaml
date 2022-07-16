@@ -1,0 +1,32 @@
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: Vault
+    network: mainnet
+    source:
+      address: "0xC5A93640f80402776c45F5c3804e1c4eF036BAbC"
+      abi: Vault
+      startBlock: 14403570
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - Car
+      abis:
+        - name: Vault
+          file: ./abis/Vault.json
+      eventHandlers:
+        - event: List(uint256,uint256,string,uint256,uint256,uint256,address,address)
+          handler: handleList
+        - event: Return(uint256,uint256,uint256,uint256)
+          handler: handlerReturn
+        - event: ConsumerChanged(indexed address,indexed address,indexed uint256) # 1. != address(0) 2. address(0) => rdy
+          handler: handlerChangeConsumer
+        - event: UnList(uint256)
+          handler: handlerUnList
+        - event: DamageReport(uint256,uint256)
+          handler: handlerDamageReport
+      file: ./src/vault.ts
