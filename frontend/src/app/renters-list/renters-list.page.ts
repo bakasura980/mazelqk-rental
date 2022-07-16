@@ -48,5 +48,9 @@ export class RentersListPage implements OnInit {
     this.balance = await this.eth.getBalance();
   }
 
-  async rent(days: any) {}
+  async rent(carId: any) {
+    console.log('carId', carId);
+    const res = await this.eth.rent(carId);
+    console.log('res', res);
+  }
 }

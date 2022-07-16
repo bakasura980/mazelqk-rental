@@ -25,9 +25,61 @@
 <ion-content [fullscreen]="true">
   <!-- <div id="container"> -->
   <div>
-    
 
-    <!-- <strong class="capitalize">{{ folder }}</strong>
-    <p>Explore <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p> -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>List New Car</ion-card-title>
+        <ion-card-subtitle>Card Subtitle</ion-card-subtitle>
+      </ion-card-header>
+    
+      <ion-card-content>
+        <!-- Keep close to Nature's heart... and break clear away, once in awhile,
+        and climb a mountain or spend a week in the woods. Wash your spirit clean. -->
+      </ion-card-content>
+
+      <img  [(src)]="carPicture" width="200px"/>
+      <ion-select placeholder="Select Car" [(ngModel)]="carPicture">
+        <ion-select-option value="">Choose car</ion-select-option>
+        <ion-select-option value="./assets/img/291873292_789011192285696_7434305738919711337_n.jpeg">honda 1</ion-select-option>
+        <ion-select-option value="./assets/img/188185245_783643235671334_344285917940311577_n.jpeg">honda 2</ion-select-option>
+        <ion-select-option value="./assets/img/219000452_513050559969863_8064805744904538233_n.jpeg">honda 3</ion-select-option>
+      </ion-select>
+
+      <span>Price</span>
+      <ion-range [min]="1" [max]="100" [(ngModel)]="price" [pin]="true" [ticks]="true" [snaps]="true"></ion-range>
+
+      <ion-card>
+        <ion-list *ngFor="let p of owners; let i = index" style="display: flex;flex-direction: row;">
+          <ion-item>
+            <ion-select placeholder="Select Owner" [(ngModel)]="owners[i].address">
+              <ion-select-option value="">None</ion-select-option>
+              <ion-select-option value="0x4c973FF964802EB2e3591Df8B90E7696c397731a">owner 1</ion-select-option>
+              <ion-select-option value="0x30584B0Ad3e1ee3b5e91D35bEF70f51290733361">owner 2</ion-select-option>
+              <ion-select-option value="0xBc0be7Be754aA5FF00FdDbF8db6919a0073e0Fe8">owner 3</ion-select-option>
+              <ion-select-option value="0x98709e0531dEe0BEf9bE6Bc46Acbb4c97D8599E2">owner 4</ion-select-option>
+              <ion-select-option value="0x8C063f160c2B598ABE7cca52c6d943f658dCfBfb">owner 5</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-range style="max-width: 200px" [min]="1" [max]="10" [(ngModel)]="owners[i].value" [pin]="true" [ticks]="true" [snaps]="true"></ion-range>
+
+          <ion-button fill="solid" color="primary" (click)="removeOwner(i)">
+            <ion-icon name="close-circle-outline"></ion-icon>
+          </ion-button> 
+        </ion-list>
+
+        
+
+        <ion-button fill="solid" color="primary" (click)="addOwner()">
+          <ion-icon name="add-circle-outline"></ion-icon>
+        </ion-button>
+      </ion-card>
+
+      <ion-button fill="solid" color="primary" (click)="addCar()">
+        <ion-icon name="car-outline"></ion-icon>
+        Add Car
+      </ion-button>
+    </ion-card>
+
   </div>
 </ion-content>
