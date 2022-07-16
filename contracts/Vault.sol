@@ -13,6 +13,7 @@ import "./interfaces/IVault.sol";
 import "./interfaces/tokens/IInterestToken.sol";
 import "./interfaces/strategies/earn-strategies/IEarnStrategy.sol";
 
+import "./libraries/Errors.sol";
 import "./libraries/TransferHelper.sol";
 
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
@@ -33,11 +34,13 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function _onlyAvailable(uint256 tokenId) internal view {
-        require(consumerOf(tokenId) == address(0), "ALREADY_RENTED");
-        require(
-            _leaseData[tokenId].status == CarStatus.AVAILABLE,
-            "UNAVAILABLE_RESOURCE"
-        );
+        if (consumerOf(tokenId) != address(0)) {
+            revert Errors.ALREADY_RENTED();
+        }
+
+        if (_leaseData[tokenId].status != CarStatus.AVAILABLE) {
+            revert Errors.UNAVAILABLE_RESOURCE();
+        }
     }
 
     modifier inTime(uint256 tokenId) {
@@ -46,8 +49,13 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function _inTime(uint256 tokenId) internal view {
-        require(msg.sender == consumerOf(tokenId), "NOT_A_RENTER");
-        require(_leaseData[tokenId].end >= block.timestamp, "OUT_OF_TIME");
+        if (msg.sender != consumerOf(tokenId)) {
+            revert Errors.NOT_A_RENTER();
+        }
+
+        if (_leaseData[tokenId].end < block.timestamp) {
+            revert Errors.OUT_OF_TIME();
+        }
     }
 
     modifier onlyInsuranceOperator(uint256 tokenId) {
@@ -56,10 +64,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function _onlyInsuranceOperator(uint256 tokenId) internal view {
-        require(
-            msg.sender == _carData[tokenId].insuranceOperator,
-            "ONLY_INSURANCE_OPERATOR"
-        );
+        if (msg.sender != _carData[tokenId].insuranceOperator) {
+            revert Errors.ONLY_INSURANCE_OPERATOR();
+        }
     }
 
     constructor(address earningsProviderAddress, uint256 perDayFactor_)
@@ -81,8 +88,12 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         uint256 reviewPeriod,
         address insuranceOperator
     ) external override returns (uint256) {
-        require(collateral <= price, "COLLATERAL_MORE_THAN_PRICE");
-        require(insuranceShare <= 1e18, "SHARE_TOO_BIG");
+        if (collateral > price) {
+            revert Errors.COLLATERAL_MORE_THAN_PRICE();
+        }
+        if (insuranceShare > 1e18) {
+            revert Errors.SHARE_TOO_BIG();
+        }
         uint256 tokenId = _tokenCounter++;
 
         _mint(address(this), tokenId);
@@ -115,10 +126,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         onlyOwner
         onlyAvailable(tokenId)
     {
-        require(
-            collateral <= _carData[tokenId].price,
-            "COLLATERAL_MORE_THAN_PRICE"
-        );
+        if (collateral > _carData[tokenId].price) {
+            revert Errors.COLLATERAL_MORE_THAN_PRICE();
+        }
         _carData[tokenId].collateral = collateral;
         emit SetCollateral(tokenId, collateral);
     }
@@ -129,7 +139,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         onlyOwner
         onlyAvailable(tokenId)
     {
-        require(insuranceShare <= 1e18, "SHARE_TOO_BIG");
+        if (insuranceShare > 1e18) {
+            revert Errors.SHARE_TOO_BIG();
+        }
         _carData[tokenId].insuranceShare =
             (_carData[tokenId].collateral * insuranceShare) /
             1e18;
@@ -150,7 +162,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             _perDayFactor *
             1 days;
 
-        require(duration > 0, "DURATION_TOO_LOW");
+        if (duration == 0) {
+            revert Errors.DURATION_TOO_LOW();
+        }
 
         _leaseData[tokenId].start = block.timestamp;
         _leaseData[tokenId].end = block.timestamp + duration;
@@ -181,7 +195,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             _perDayFactor *
             1 days;
 
-        require(duration > 0, "EXTEND_DURATION_TOO_LOW");
+        if (duration == 0) {
+            revert Errors.EXTEND_DURATION_TOO_LOW();
+        }
         _leaseData[tokenId].end += duration;
         _leaseData[tokenId].rent += msg.value;
 
@@ -226,15 +242,15 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function claimInsurance(address to, uint256 tokenId) external override {
-        require(
-            _leaseData[tokenId].status == CarStatus.RETURNED,
-            "VAULT: STATUS_NOT_RETURNED"
-        );
-        require(
-            _leaseData[tokenId].returned + _carData[tokenId].reviewPeriod >
-                block.timestamp,
-            "VAULT: ALREADY_REVIEWED"
-        );
+        if (_leaseData[tokenId].status != CarStatus.RETURNED) {
+            revert Errors.STATUS_NOT_RETURNED();
+        }
+        if (
+            _leaseData[tokenId].returned + _carData[tokenId].reviewPeriod <=
+            block.timestamp
+        ) {
+            revert Errors.ALREADY_REVIEWED();
+        }
 
         _leaseData[tokenId].status = CarStatus.DAMAGED;
 
@@ -254,11 +270,12 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function liquidate(uint256 tokenId) external override {
-        require(block.timestamp > _leaseData[tokenId].end, "LEASE_NOT_EXPIRED");
-        require(
-            _leaseData[tokenId].status == CarStatus.RENTED,
-            "NOT_RENTED_TO_BE_LIQUIDATED"
-        );
+        if (block.timestamp <= _leaseData[tokenId].end) {
+            revert Errors.LEASE_NOT_EXPIRED();
+        }
+        if (_leaseData[tokenId].status != CarStatus.RENTED) {
+            revert Errors.NOT_RENTED_TO_BE_LIQUIDATED();
+        }
 
         interestToken.burnPrincipal(
             _carData[tokenId].insuranceOperator,
@@ -287,10 +304,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         onlyInsuranceOperator(tokenId)
     {
-        require(
-            _leaseData[tokenId].status == CarStatus.RETURNED,
-            "CAR_NOT_RETURNED"
-        );
+        if (_leaseData[tokenId].status != CarStatus.RETURNED) {
+            revert Errors.CAR_NOT_RETURNED();
+        }
 
         interestToken.burnPrincipal(
             _carData[tokenId].insuranceOperator,
@@ -332,10 +348,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         onlyInsuranceOperator(tokenId)
     {
-        require(
-            _leaseData[tokenId].status == CarStatus.DAMAGED,
-            "CAR_NOT_DAMAGED"
-        );
+        if (_leaseData[tokenId].status != CarStatus.DAMAGED) {
+            revert Errors.CAR_NOT_DAMAGED();
+        }
 
         _ready(tokenId);
         emit Repair(tokenId);
@@ -350,11 +365,12 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         external
         override
     {
-        require(
-            _leaseData[tokenId].status == CarStatus.AVAILABLE ||
-                _leaseData[tokenId].status == CarStatus.DAMAGED,
-            "CAN_NOT_BE_UNLISTED"
-        );
+        if (
+            _leaseData[tokenId].status != CarStatus.AVAILABLE &&
+            _leaseData[tokenId].status != CarStatus.DAMAGED
+        ) {
+            revert Errors.CAN_NOT_BE_UNLISTED();
+        }
 
         // message is tokenId + IVault.unlist.selector
         uint256 total;
@@ -373,10 +389,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             }
         }
 
-        require(
-            total == _carData[tokenId].ownershipContract.totalSupply(),
-            "NOT_ALL_OWNERS_AGREE"
-        );
+        if (total != _carData[tokenId].ownershipContract.totalSupply()) {
+            revert Errors.NOT_ALL_OWNERS_AGREE();
+        }
 
         _burn(tokenId);
 
@@ -411,7 +426,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         returns (string memory)
     {
-        require(_exists(tokenId), "no");
+        if (!_exists(tokenId)) {
+            revert Errors.DOES_NOT_EXISTS();
+        }
         return _carData[tokenId].tokenURI;
     }
 
