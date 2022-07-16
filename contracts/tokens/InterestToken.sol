@@ -23,6 +23,9 @@ contract InterestToken is ERC20, IInterestToken {
     /** @notice Tracks Principal + Accruing Interest for every user */
     mapping(address => uint256) public override userIndex;
 
+    /** @notice Tracks Principal Deposited */
+    mapping(address => uint256) public override userPrincipal;
+
     modifier onlyVault() {
         require(msg.sender == vault, "InterestToken: ONLY_VAULT");
         _;
@@ -42,21 +45,49 @@ contract InterestToken is ERC20, IInterestToken {
         _userSnapshot(account);
 
         _mint(account, amount);
+
         balanceAtIndex += amount;
+        userPrincipal[account] += amount;
     }
 
-    /// @notice Creates `amount` tokens and assigns them to `account`, reducing the total supply.
+    /// @notice Burn principal as it belongs to another account the current one accrues interest for
     /// @param account The account that is withdrawing
     /// @param amount The amount the account is withdrawing
-    function burn(address account, uint256 amount) external override onlyVault {
-        _userSnapshot(account);
+    function burnPrincipal(address account, uint256 amount)
+        external
+        override
+        onlyVault
+    {
+        _burn(account, amount);
+        userPrincipal[account] -= amount;
+    }
 
-        uint256 accountBalance = super.balanceOf(account);
-        if (amount > accountBalance) {
-            amount = accountBalance;
+    /// @notice Burn interest as it belongs to the account that is accruing interest on behalf of another account
+    /// @param account The account that is withdrawing
+    /// @param amount The amount the account is withdrawing
+    function burnInterest(address account, uint256 amount)
+        external
+        override
+        onlyVault
+    {
+        uint256 interestBalance = balanceOf(account);
+        if (amount > interestBalance) {
+            amount = interestBalance;
         }
 
         _burn(account, amount);
+    }
+
+    /// @notice Reusable burn function accounting for interest accrual snapshoting
+    /// @param account The account that is withdrawing
+    /// @param amount The amount the account is withdrawing
+    function _burn(address account, uint256 amount)
+        internal
+        override
+        onlyVault
+    {
+        _userSnapshot(account);
+        super._burn(account, amount);
         balanceAtIndex -= amount;
     }
 
@@ -99,7 +130,7 @@ contract InterestToken is ERC20, IInterestToken {
         returns (uint256 userBalance)
     {
         (uint256 currentIndex, ) = calcNewIndex();
-        return balanceOfAtIndex(account, currentIndex);
+        return balanceOfAtIndex(account, currentIndex) - userPrincipal[account];
     }
 
     /// @notice Calculates a given user balance at a specific index
@@ -213,7 +244,7 @@ contract InterestToken is ERC20, IInterestToken {
         _userSnapshot(sender);
         _userSnapshot(receiver);
 
-        uint256 balance = ERC20.balanceOf(sender);
+        uint256 balance = balanceOf(sender);
         if (amount > balance) {
             amount = balance;
         }

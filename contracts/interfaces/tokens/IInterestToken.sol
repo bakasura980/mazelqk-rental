@@ -16,11 +16,15 @@ interface IInterestToken is IERC20, IERC20Metadata {
 
     function userIndex(address user) external view returns (uint256);
 
+    function userPrincipal(address user) external view returns (uint256);
+
     function interestIndex() external view returns (uint256);
 
     function mint(address account, uint256 amount) external;
 
-    function burn(address account, uint256 amount) external;
+    function burnPrincipal(address account, uint256 amount) external;
+
+    function burnInterest(address account, uint256 amount) external;
 
     function setEarningsStrategy(address newStrategy) external;
 

@@ -81,4 +81,6 @@ contract OwnershipToken is ERC20 {
         userClaimed[wallet] += amount;
         return amount;
     }
+
+    // function receiveRent() external payable onlyVault {}
 }
