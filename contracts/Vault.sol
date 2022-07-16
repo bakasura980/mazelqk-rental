@@ -36,7 +36,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         uint256 returned;
         CarStatus status;
         uint256 rent;
-        uint256 collateral;
     }
 
     enum CarStatus {
@@ -151,7 +150,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
     function rent(uint256 tokenId) external payable onlyAvailable {
         _leaseData[tokenId].rent = msg.value - _carData[tokenId].collateral;
-        _leaseData[tokenId].collateral = _carData[tokenId].collateral;
 
         uint256 duration = (_leaseData[tokenId].rent /
             _carData[tokenId].price) *
@@ -270,13 +268,13 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
             _carData[tokenId].collateral - _carData[tokenId].insuranceShare
         );
 
-        uint256 incentive = (_leaseData[tokenId].collateral *
-            INCENTIVE_FACTOR) / 1e18;
+        uint256 incentive = (_carData[tokenId].collateral * INCENTIVE_FACTOR) /
+            1e18;
 
         earningsProvider.withdraw(msg.sender, incentive);
         earningsProvider.withdraw(
             _carData[tokenId].insuranceOperator,
-            _leaseData[tokenId].collateral - incentive
+            _carData[tokenId].collateral - incentive
         );
     }
 
@@ -301,23 +299,22 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
         if (health < 100) {
             _leaseData[tokenId].status = CarStatus.DAMAGED;
-            uint256 recoverAmount = (_leaseData[tokenId].collateral * health) /
+            uint256 recoverAmount = (_carData[tokenId].collateral * health) /
                 100;
 
-            _leaseData[tokenId].collateral -= recoverAmount;
-
-            earningsProvider.withdraw(
-                consumerOf(tokenId),
-                _leaseData[tokenId].collateral
-            );
             earningsProvider.withdraw(
                 _carData[tokenId].insuranceOperator,
                 recoverAmount
             );
+
+            earningsProvider.withdraw(
+                consumerOf(tokenId),
+                _carData[tokenId].collateral - recoverAmount
+            );
         } else {
             TransferHelper.safeTransferNative(
                 consumerOf(tokenId),
-                _leaseData[tokenId].collateral
+                _carData[tokenId].collateral
             );
             _ready(tokenId);
         }
