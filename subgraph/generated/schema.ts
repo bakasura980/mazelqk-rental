@@ -701,3 +701,70 @@ export class Transaction extends Entity {
     this.set("events", Value.fromStringArray(value));
   }
 }
+
+export class Car extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save Car entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type Car must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("Car", id.toString(), this);
+    }
+  }
+
+  static load(id: string): Car | null {
+    return changetype<Car | null>(store.get("Car", id));
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value!.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get renter(): Bytes | null {
+    let value = this.get("renter");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBytes();
+    }
+  }
+
+  set renter(value: Bytes | null) {
+    if (!value) {
+      this.unset("renter");
+    } else {
+      this.set("renter", Value.fromBytes(<Bytes>value));
+    }
+  }
+
+  get insuranceOperator(): Bytes {
+    let value = this.get("insuranceOperator");
+    return value!.toBytes();
+  }
+
+  set insuranceOperator(value: Bytes) {
+    this.set("insuranceOperator", Value.fromBytes(value));
+  }
+
+  get status(): string {
+    let value = this.get("status");
+    return value!.toString();
+  }
+
+  set status(value: string) {
+    this.set("status", Value.fromString(value));
+  }
+}

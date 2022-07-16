@@ -3,27 +3,30 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum
-    name: InterestToken
+    name: Vault
     network: mainnet
     source:
-      address: "0x9462BaC7722Da114C11893EC6b50b15F92cB109a"
-      abi: InterestToken
-      startBlock: 14403575
+      address: "0xC5A93640f80402776c45F5c3804e1c4eF036BAbC"
+      abi: Vault
+      startBlock: 14403570
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.5
       language: wasm/assemblyscript
       entities:
-        - Approval
-        - SetEarningsStrategy
-        - Snapshot
-        - Transfer
+        - Car
       abis:
-        - name: InterestToken
-          file: ./abis/InterestToken.json
+        - name: Vault
+          file: ./abis/Vault.json
       eventHandlers:
-        - event: Snapshot(uint256,uint256)
-          handler: handleSnapshot
-        - event: Transfer(indexed address,indexed address,uint256)
-          handler: handleTransfer
-      file: ./src/interest-token.ts
+        - event: List(uint256,uint256,string,uint256,uint256,uint256,address,address)
+          handler: handleList
+        - event: Return(uint256,uint256,uint256,uint256)
+          handler: handlerReturn
+        - event: ConsumerChanged(indexed address,indexed address,indexed uint256) # 1. != address(0) 2. address(0) => rdy
+          handler: handlerChangeConsumer
+        - event: UnList(uint256)
+          handler: handlerUnList
+        - event: DamageReport(uint256,uint256)
+          handler: handlerDamageReport
+      file: ./src/vault.ts
