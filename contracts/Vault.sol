@@ -1,14 +1,21 @@
-pragma solidity ^0.8.12;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.14;
 
+// if we dont use enumberable switch it to erc721
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "tokens/OwnershipToken.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./tokens/OwnershipToken.sol";
+import "./tokens/ERC721Consumable.sol";
 
-contract Vault is ERC721Enumerable, IERC721Consumable {
+contract Vault is ERC721Enumerable, ERC721Consumable {
     uint256 private _tokenCounter;
     uint256 private _collateralFactor;
     uint256 private _perDayFactor;
     // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
+
+    mapping(uint256 => string) private _tokenURIs;
+    mapping(uint256 => address) private _tokenDAOs;
 
     struct CarData {
         address ownershipContract;
@@ -37,17 +44,32 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
     mapping(uint256 => CarData) public carData;
     mapping(uint256 => LeaseData) public leaseData;
 
-    constructor(uint256 collateralFactor_, uint256 perDayFactor_) {
+    constructor(uint256 collateralFactor_, uint256 perDayFactor_)
+        ERC721("", "") {
         _collateralFactor = collateralFactor_;
         _perDayFactor = perDayFactor_;
+    }
+
+    function ownerOf(uint256 tokenId) public view override(ERC721, IERC721, ERC721Consumable) returns (address) {
+        return ERC721Enumerable.ownerOf(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId_)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        require(_exists(tokenId_), "no");
+        return _tokenURIs[tokenId_];
     }
 
     function list(
         address[] calldata owners,
         uint256[] calldata shares,
-        string tokenURI
+        string calldata tokenURI_,
+        address daoAddress
     ) external returns (uint256) {
-        // require owners < 10
         uint256 tokenId = _mint(address(this), _tokenCounter++);
 
         carData[tokenId].ownershipContract = new OwnershipToken(
@@ -56,6 +78,9 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
             owners,
             shares
         );
+
+        _tokenURIs[tokenId] = tokenURI_;
+        _tokenDAOs[tokenId] = daoAddress;
 
         // TODO maybe mint it to the ERC20 and approve ourselves to set the renter
         return tokenId;
@@ -71,7 +96,8 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
     }
 
     function rent(uint256 tokenId) external payable {
-        // exists?
+        require(_exists(tokenId), "no");
+
         // por que no los dos
         // require rent less than 20% collateral
         require(consumerOf(tokenId) == address(0), "already rented");
@@ -135,7 +161,7 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         require(amount > 0, "noop");
 
         (bool success, bytes memory returndata) = wallet.call{
-            value: leaseData[tokenId].rent - actualRent
+            value: amount
         }("");
         require(success, string(returndata));
     }
@@ -160,7 +186,7 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         }
     }
 
-    function damageReport(uint256 tokenId, uint256 health) external onlyDao {
+    function damageReport(uint256 tokenId, uint256 health) external onlyDao(tokenId) {
         _setHealth(tokenId, health);
     }
 
@@ -181,7 +207,7 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         }
     }
 
-    function repair(uint256 tokenId) external onlyDao {
+    function repair(uint256 tokenId) external onlyDao(tokenId) {
         _ready(tokenId);
     }
 
@@ -202,8 +228,12 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
 
         uint256 total;
         for (uint256 i; i < signatures.length; ) {
-            // TODO recover address
-            address signer;
+            address signer = ECDSA.recover(
+                ECDSA.toEthSignedMessageHash(
+                    keccak256(abi.encode(tokenId, Vault.unlist.selector))
+                ),
+                signatures[i]
+            );
 
             total += carData[tokenId].ownershipContract.balanceOf(signer);
             uint256 amount = carData[tokenId].ownershipContract.claim(signer);
@@ -221,5 +251,22 @@ contract Vault is ERC721Enumerable, IERC721Consumable {
         );
 
         _burn(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC721Enumerable, ERC721Consumable)
+        returns (bool)
+    {
+        return
+            ERC721Enumerable.supportsInterface(interfaceId) ||
+            ERC721Consumable.supportsInterface(interfaceId);
+    }
+
+    modifier onlyDao(uint256 tokenId) {
+        require(msg.sender == _tokenDAOs[tokenId], "samo na6i ora");
+        _;
     }
 }
