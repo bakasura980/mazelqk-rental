@@ -19,7 +19,6 @@ import "./libraries/TransferHelper.sol";
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
     uint256 private _perDayFactor;
-    // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
     IInterestToken public override interestToken;
@@ -155,12 +154,16 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         onlyAvailable(tokenId)
     {
-        _leaseData[tokenId].rent = msg.value - _carData[tokenId].collateral;
+        uint256 rent = msg.value - _carData[tokenId].collateral;
+        _leaseData[tokenId].rent = rent;
 
-        uint256 duration = (_leaseData[tokenId].rent /
-            _carData[tokenId].price) *
-            _perDayFactor *
-            1 days;
+        // uint256 duration = _leaseData[tokenId].rent /
+        //     (_carData[tokenId].price *
+        //     _perDayFactor * / 1e18) *
+        //     1 days;
+
+        uint256 duration = (rent * 1 days * 1e18) /
+            (_carData[tokenId].price * _perDayFactor);
 
         if (duration == 0) {
             revert Errors.DURATION_TOO_LOW();
@@ -181,9 +184,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         earningsProvider.deposit{value: _carData[tokenId].collateral}();
 
-        _carData[tokenId].ownershipContract.receiveRent{
-            value: _leaseData[tokenId].rent
-        }();
+        _carData[tokenId].ownershipContract.receiveRent{value: rent}();
 
         changeConsumer(msg.sender, tokenId);
 
