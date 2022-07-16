@@ -1,8 +1,13 @@
 <ion-app>
   <ion-split-pane contentId="main-content">
+    
     <ion-menu contentId="main-content" type="overlay">
       <ion-content>
         <ion-list class="inbox-list">
+          <ion-button fill="solid" color="primary" (click)="skipDay()">
+            <ion-icon name="hourglass-outline"></ion-icon>
+            Timetravel
+          </ion-button>
           <ion-list-header>DAO</ion-list-header>
           <!-- <ion-note>hi@ionicframework.com</ion-note> -->
 

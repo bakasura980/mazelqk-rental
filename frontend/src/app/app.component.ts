@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { EthersService } from './services/ethers';
 
 @Component({
   selector: 'app-root',
@@ -27,5 +28,9 @@ export class AppComponent {
     { title: 'Profile', url: '/renters/profile', icon: 'person' }, // rent, return, extend
     { title: 'All Cars', url: '/renters/list', icon: 'car-sport' }, // all availiable cars
   ];
-  constructor() {}
+  constructor(private eth: EthersService) {}
+
+  async skipDay() {
+    await this.eth.skipDay();
+  }
 }

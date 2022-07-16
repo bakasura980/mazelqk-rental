@@ -16,7 +16,44 @@ dotenv.config();
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
-const accounts = [];
+// 0xe80902f1423234ab6de5232a497a2dad6825185949438bdf02ef36cd3f38d62c
+// 0x4c973FF964802EB2e3591Df8B90E7696c397731a
+// 0x8dc23d20e4cc1c1bce80b3610d2b9c3d2dcc917fe838d6161c7b7107ea8049d2
+// 0x30584B0Ad3e1ee3b5e91D35bEF70f51290733361
+// 0xf467b3f495971ec1804cd753984e2ab03affc8574c35bd302d611f93420c1861
+// 0xBc0be7Be754aA5FF00FdDbF8db6919a0073e0Fe8
+// 0x195c2fce7255bddbea14def3ca04fd5bf2b53e749cd2d4ac33a85d6872e798f6
+// 0x98709e0531dEe0BEf9bE6Bc46Acbb4c97D8599E2
+// 0xa9039111697f2c0c51d0c2f35cb1fc1fa9f0456e1a0b58c297d4940eda35b135
+// 0x8C063f160c2B598ABE7cca52c6d943f658dCfBfb
+
+const accounts = [
+  {
+    privateKey:
+      "0xe80902f1423234ab6de5232a497a2dad6825185949438bdf02ef36cd3f38d62c",
+    balance: "371231719819352917048",
+  },
+  {
+    privateKey:
+      "0x8dc23d20e4cc1c1bce80b3610d2b9c3d2dcc917fe838d6161c7b7107ea8049d2",
+    balance: "371231719819352917048",
+  },
+  {
+    privateKey:
+      "0xf467b3f495971ec1804cd753984e2ab03affc8574c35bd302d611f93420c1861",
+    balance: "371231719819352917048",
+  },
+  {
+    privateKey:
+      "0x195c2fce7255bddbea14def3ca04fd5bf2b53e749cd2d4ac33a85d6872e798f6",
+    balance: "371231719819352917048",
+  },
+  {
+    privateKey:
+      "0xa9039111697f2c0c51d0c2f35cb1fc1fa9f0456e1a0b58c297d4940eda35b135",
+    balance: "371231719819352917048",
+  },
+];
 for (let index = 0; index < 10; index++) {
   accounts.push({
     privateKey: ethers.Wallet.createRandom().privateKey,
