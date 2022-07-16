@@ -30,7 +30,7 @@ contract OwnershipToken is ERC20 {
             }
         }
 
-        require(totalSupply() == TOTAL_SHARES, "na4i se da smqta6");
+        require(totalSupply() == TOTAL_SHARES, "nau4i se da smqta6");
 
         _vault = vault_;
         _carToken = carToken_;
