@@ -21,11 +21,11 @@ export class AppComponent {
     },
   ];
   public ownersPages = [
-    { title: 'Rewards', url: '/owners/profile', icon: 'people' }, // claim
+    { title: 'Rewards', url: '/owners/rewards', icon: 'people' }, // claim
   ];
   public rentersPages = [
-    { title: 'Profile', url: '/renters/dashboard', icon: 'person' }, // rent, return, extend
-    { title: 'All Cars', url: '/renters/cars', icon: 'car-sport' }, // all availiable cars
+    { title: 'Profile', url: '/renters/profile', icon: 'person' }, // rent, return, extend
+    { title: 'All Cars', url: '/renters/list', icon: 'car-sport' }, // all availiable cars
   ];
   constructor() {}
 }

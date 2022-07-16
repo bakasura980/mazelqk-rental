@@ -1,0 +1,33 @@
+<ion-header [translucent]="true">
+
+  <ion-toolbar>
+    <ion-title>{{ folder }}</ion-title>
+
+    <ion-buttons slot="primary">
+      <ion-button *ngIf="!currentAccount" fill="solid" color="primary" (click)="connect()">
+        <ion-icon name="flash-off-outline"></ion-icon>
+        Connect
+      </ion-button>
+
+      <ion-button *ngIf="currentAccount" fill="solid" color="primary">
+        <ion-icon name="flash-outline"></ion-icon>
+        {{ currentAccount }}
+      </ion-button>
+      <ion-button *ngIf="currentAccount" fill="solid" color="secondary">
+        <ion-icon name="wallet-outline"></ion-icon>
+        {{ balance }}
+      </ion-button>
+    </ion-buttons>
+
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true">
+  <!-- <div id="container"> -->
+  <div>
+    
+
+    <!-- <strong class="capitalize">{{ folder }}</strong>
+    <p>Explore <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p> -->
+  </div>
+</ion-content>
