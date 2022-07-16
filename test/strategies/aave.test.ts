@@ -139,6 +139,29 @@ describe("Aave Strategy", function () {
     ).to.be.revertedWith("AaveStrategy: IN_COOLDOWN_PERIOD");
   });
 
+  it("Should revert when redeeming rewards", async function () {
+    const deposit = ethers.utils.parseEther("1");
+    await strategyAave.connect(signers[1]).deposit({ value: deposit });
+
+    expect(await strategyAave.canClaim()).to.be.equal(true);
+
+    await strategyAave.connect(signers[1]).claimRewards({
+      gasLimit: 1200000,
+    });
+
+    // time travel - not enough for the next claim
+    await ethers.provider.send("evm_increaseTime", [1 * 24 * 60 * 60]);
+    await ethers.provider.send("evm_mine", []);
+
+    expect(await strategyAave.canClaim()).to.be.equal(false);
+
+    await expect(
+      strategyAave.connect(signers[1]).redeemRewards({
+        gasLimit: 1200000,
+      })
+    ).to.be.revertedWith("AaveStrategy: IN_COOLDOWN_PERIOD");
+  });
+
   it("Should withdraw 1 ETH", async function () {
     const deposit = ethers.utils.parseEther("5");
     const toWithdraw = ethers.utils.parseEther("1");
