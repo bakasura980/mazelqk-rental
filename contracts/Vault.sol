@@ -9,9 +9,11 @@ import "./tokens/InterestToken.sol";
 import "./tokens/OwnershipToken.sol";
 import "./tokens/ERC721Consumable.sol";
 
+import "./interfaces/IVault.sol";
+
 import "./libraries/TransferHelper.sol";
 
-contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
+contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
     uint256 private _perDayFactor; // Колко процента от цената на ден
     // 0.01
@@ -109,7 +111,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
         _mint(address(this), tokenId);
         _carData[tokenId].ownershipContract = new OwnershipToken(
-            this,
             tokenId,
             owners,
             shares

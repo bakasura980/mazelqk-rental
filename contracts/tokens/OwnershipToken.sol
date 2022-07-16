@@ -5,10 +5,10 @@ pragma solidity ^0.8.14;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-import "../Vault.sol";
 import "../libraries/TransferHelper.sol";
+import "../interfaces/tokens/IOwnershipToken.sol";
 
-contract OwnershipToken is ERC20 {
+contract OwnershipToken is ERC20, IOwnershipToken {
     uint256 public rentBalance;
 
     mapping(address => uint256) public userClaimed;
