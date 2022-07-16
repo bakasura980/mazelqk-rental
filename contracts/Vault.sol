@@ -18,9 +18,7 @@ import "./libraries/TransferHelper.sol";
 
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
-    // 0.01
     uint256 private _perDayFactor;
-    // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
     IInterestToken public override interestToken;
