@@ -16,6 +16,8 @@ import "./interfaces/strategies/earn-strategies/IEarnStrategy.sol";
 import "./libraries/Errors.sol";
 import "./libraries/TransferHelper.sol";
 
+import "hardhat/console.sol";
+
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
     uint256 private _perDayFactor;
@@ -33,6 +35,10 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function _onlyAvailable(uint256 tokenId) internal view {
+        if (!_exists(tokenId)) {
+            revert Errors.DOES_NOT_EXISTS();
+        }
+
         if (consumerOf(tokenId) != address(0)) {
             revert Errors.ALREADY_RENTED();
         }

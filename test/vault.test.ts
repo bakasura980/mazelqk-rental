@@ -113,7 +113,7 @@ describe("Vault", function () {
     ).to.be.revertedWith("SHARE_TOO_BIG");
   });
 
-  it.only("Should rent a car", async function () {
+  it("Should rent a car", async function () {
     await vault.list(
       [signers[1].address, signers[2].address, signers[3].address],
       [
@@ -158,5 +158,38 @@ describe("Vault", function () {
     );
 
     expect(await vault.consumerOf(0)).to.be.equal(signers[0].address);
+  });
+
+  it.only("Should revert rent in case of invalid duration", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    await expect(
+      vault.rent(0, { value: ethers.utils.parseEther("5") })
+    ).to.be.revertedWith("DURATION_TOO_LOW");
+  });
+
+  it.only("Should revert rent in case of not available car", async function () {
+    await expect(
+      vault.rent(0, { value: ethers.utils.parseEther("5") })
+    ).to.be.revertedWith("DOES_NOT_EXISTS");
+  });
+
+  it("Should extend rental period", async function () {
+    await expect(
+      vault.rent(0, { value: ethers.utils.parseEther("5") })
+    ).to.be.revertedWith("UNAVAILABLE_RESOURCE");
   });
 });
