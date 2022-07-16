@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/tokens/IInterestToken.sol";
-import "../interfaces/strategies/IEarnStrategy.sol";
+import "../interfaces/strategies/earn-strategies/IEarnStrategy.sol";
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -134,7 +134,7 @@ contract InterestToken is ERC20, IInterestToken {
         balanceAtIndex_ = balanceAtIndex;
 
         uint256 balancePrev = balanceAtIndex_;
-        uint256 balanceNew = IEarnStrategy(earningsStrategy).balanceOf(vault);
+        uint256 balanceNew = IEarnStrategy(earningsStrategy).balanceOf();
 
         if (balancePrev > 0 && balancePrev < balanceNew) {
             // Increase the index proportionally to the balances:

@@ -1,6 +1,6 @@
 import chai from "chai";
-import { ethers, run } from "hardhat";
 import * as utils from "../../utils";
+import { ethers, run } from "hardhat";
 import { IERC20, StrategyAave } from "../../typechain";
 
 const { expect } = chai;
@@ -26,8 +26,7 @@ describe("Aave Strategy", function () {
       utils.AavePoolAddress,
       utils.wethGatewayAddress,
       utils.aaveDataProviderAddress,
-      utils.AaveIncentivesController,
-      utils.ethAddress
+      utils.AaveIncentivesController
     );
     await strategyAave.deployed();
     await strategyAave.transferOwnership(signers[1].address);
@@ -35,11 +34,11 @@ describe("Aave Strategy", function () {
 
   it("Should deposit 1 ETH", async function () {
     const deposit = ethers.utils.parseEther("1");
-    const aBalanceBefore = await strategyAave.supplyBalance();
+    const aBalanceBefore = await strategyAave.balanceOf();
 
     await strategyAave.connect(signers[1]).deposit({ value: deposit });
 
-    const aBalanceAfter = await strategyAave.supplyBalance();
+    const aBalanceAfter = await strategyAave.balanceOf();
 
     // There is immediately interest being accrued, so just round the numbers down
     expect(aBalanceBefore.add(deposit).div(1000)).to.be.equal(
@@ -137,13 +136,7 @@ describe("Aave Strategy", function () {
       strategyAave.connect(signers[1]).claimRewards({
         gasLimit: 1200000,
       })
-    ).to.be.revertedWith("StrategyAave: in cooldown period");
-  });
-
-  it("Should return the correct lending pool address", async function () {
-    expect((await strategyAave.getLendingPool()).toLowerCase()).to.be.equal(
-      utils.AavePoolAddress
-    );
+    ).to.be.revertedWith("AaveStrategy: IN_COOLDOWN_PERIOD");
   });
 
   it("Should withdraw 1 ETH", async function () {
@@ -151,13 +144,13 @@ describe("Aave Strategy", function () {
     const toWithdraw = ethers.utils.parseEther("1");
     await strategyAave.connect(signers[1]).deposit({ value: deposit });
 
-    const aBalanceBefore = await strategyAave.supplyBalance();
+    const aBalanceBefore = await strategyAave.balanceOf();
 
     await strategyAave
       .connect(signers[1])
       .withdraw(signers[1].address, toWithdraw);
 
-    const aBalanceAfter = await strategyAave.supplyBalance();
+    const aBalanceAfter = await strategyAave.balanceOf();
 
     expect(aBalanceBefore.sub(toWithdraw).div(1000)).to.be.closeTo(
       aBalanceAfter.div(1000),
@@ -169,7 +162,7 @@ describe("Aave Strategy", function () {
     const deposit = ethers.utils.parseEther("1");
     await strategyAave.connect(signers[1]).deposit({ value: deposit });
 
-    const aBalanceBefore = await strategyAave.supplyBalance();
+    const aBalanceBefore = await strategyAave.balanceOf();
 
     await strategyAave
       .connect(signers[1])
@@ -178,7 +171,7 @@ describe("Aave Strategy", function () {
         "115792089237316195423570985008687907853269984665640564039457584007913129639935"
       );
 
-    const aBalanceAfter = await strategyAave.supplyBalance();
+    const aBalanceAfter = await strategyAave.balanceOf();
 
     expect(aBalanceBefore.sub(deposit).div(1000)).to.be.equal(
       aBalanceAfter.div(1000)
