@@ -4,50 +4,53 @@ pragma solidity ^0.8.14;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+
 import "../Vault.sol";
+import "../libraries/TransferHelper.sol";
 
 contract OwnershipToken is ERC20 {
-    Vault private _vault;
-    uint256 private _carToken;
+    uint256 public rentBalance;
 
     mapping(address => uint256) public userClaimed;
 
-    mapping(address => uint256) public userSnapshotClaimable;
     mapping(address => uint256) public userSnapshotTreasury;
+    mapping(address => uint256) public userSnapshotClaimable;
 
     uint256 internal constant TOTAL_SHARES = 100e18;
 
     constructor(
-        Vault vault_,
-        uint256 carToken_,
-        address[] memory owners_,
-        uint256[] memory shares_
+        uint256 tokenId,
+        address[] memory owners,
+        uint256[] memory shares
     )
         ERC20(
             string(
                 abi.encodePacked(
                     "Car ownership token ",
-                    Strings.toString(carToken_)
+                    Strings.toString(tokenId)
                 )
             ),
-            string(abi.encodePacked("C", Strings.toString(carToken_)))
+            string(abi.encodePacked("COT", Strings.toString(tokenId)))
         )
     {
-        require(owners_.length == shares_.length, "negramotnik");
-        require(owners_.length <= 10, "mnogo ste");
+        require(owners.length <= 10, "OwnershipToken: TOO_MANY_OWNERS");
+        require(
+            owners.length == shares.length,
+            "OwnershipToken: SHARES_NOT_ENOUGH"
+        );
 
-        for (uint256 i; i < owners_.length; ) {
-            _mint(owners_[i], shares_[i]);
+        for (uint256 i; i < owners.length; ) {
+            _mint(owners[i], shares[i]);
 
             unchecked {
                 i++;
             }
         }
 
-        require(totalSupply() == TOTAL_SHARES, "nau4i se da smqta6");
-
-        _vault = vault_;
-        _carToken = carToken_;
+        require(
+            totalSupply() == TOTAL_SHARES,
+            "OwnershipToken: MISSING_SHARES"
+        );
     }
 
     function _beforeTokenTransfer(
@@ -59,29 +62,43 @@ contract OwnershipToken is ERC20 {
         snapshot(to);
     }
 
-    function snapshot(address wallet) public {
-        userSnapshotClaimable[wallet] += _calculateCurrent(wallet);
-        userSnapshotTreasury[wallet] = _vault.carData(_carToken).treasury;
+    function snapshot(address account) public {
+        userSnapshotClaimable[account] += _calculateCurrent(account);
+        userSnapshotTreasury[account] = rentBalance;
     }
 
-    function _calculateCurrent(address wallet) internal view returns (uint256) {
-        uint256 shares = balanceOf(wallet);
+    function claimable(address account) public view returns (uint256) {
         return
-            ((_vault.carData(_carToken).treasury -
-                userSnapshotTreasury[wallet]) * shares) / TOTAL_SHARES;
+            userSnapshotClaimable[account] +
+            _calculateCurrent(account) -
+            userClaimed[account];
     }
 
-    function claimable(address wallet) public view returns (uint256) {
+    function _calculateCurrent(address account)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 shares = balanceOf(account);
         return
-            userSnapshotClaimable[wallet] +
-            _calculateCurrent(wallet) -
-            userClaimed[wallet];
+            ((rentBalance - userSnapshotTreasury[account]) * shares) /
+            TOTAL_SHARES;
     }
 
-    function claim(address wallet) public returns (uint256) {
-        // snapshot(wallet); not needed?
-        uint256 amount = claimable(wallet);
-        userClaimed[wallet] += amount;
-        return amount;
+    function claim(address to, uint256 amount) external returns (uint256) {
+        require(
+            amount <= claimable(msg.sender),
+            "OwnershipToken: NOT_ENOUGH_TO_CLAIM"
+        );
+
+        userClaimed[msg.sender] += amount;
+        TransferHelper.safeTransferNative(to, amount);
+
+        emit Claim(msg.sender, to, amount);
+    }
+
+    function receiveRent() external payable {
+        rentBalance += msg.value;
+        emit ReceiveRent(rentBalance, msg.value);
     }
 }

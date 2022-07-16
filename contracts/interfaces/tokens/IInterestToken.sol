@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 
 interface IInterestToken is IERC20, IERC20Metadata {
     event Snapshot(uint256 index, uint256 balance);
-    event SetEarningsStrategy(address newStrategy);
+    event SetEarningsProvider(address newStrategy);
 
     function vault() external view returns (address);
 
-    function earningsStrategy() external view returns (address);
+    function earningsProvider() external view returns (address);
 
     function balanceAtIndex() external view returns (uint256);
 
@@ -26,7 +26,7 @@ interface IInterestToken is IERC20, IERC20Metadata {
 
     function burnInterest(address account, uint256 amount) external;
 
-    function setEarningsStrategy(address newStrategy) external;
+    function setEarningsProvider(address newStrategy) external;
 
     function snapshot() external;
 

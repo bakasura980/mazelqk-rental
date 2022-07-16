@@ -11,24 +11,19 @@ import "./tokens/ERC721Consumable.sol";
 
 import "./libraries/TransferHelper.sol";
 
-// Todo: Deploy interest token
-
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
     uint256 private _tokenCounter;
-    uint256 private _collateralFactor;
-    uint256 private _perDayFactor;
+    uint256 private _perDayFactor; // Колко процента от цената на ден
     // 0.01
     uint256 internal constant INCENTIVE_FACTOR = 1e16;
 
-    address public override interestToken;
-    address public override earningsProvider;
+    IInterestToken public override interestToken;
+    IEarnStrategy public override earningsProvider;
 
     struct CarData {
         bool available;
         uint256 price;
         string tokenURI;
-        // running total
-        uint256 treasury;
         uint256 collateral;
         uint256 insuranceShare;
         address insuranceOperator;
@@ -90,34 +85,11 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         _;
     }
 
-    constructor(address interestTokenAddress, address earningsProviderAddress) {
-        interestToken = interestTokenAddress;
-        earningsProvider = earningsProviderAddress;
-        _collateralFactor = collateralFactor_;
+    constructor(address earningsProviderAddress) {
+        earningsProvider = IEarnStrategy(earningsProviderAddress);
+        interestToken = new InterestToken(earningsProviderAddress);
+
         _perDayFactor = perDayFactor_;
-    }
-
-    function carData(uint256 tokenId) public view returns (CarData memory) {
-        return _carData[tokenId];
-    }
-
-    function ownerOf(uint256 tokenId)
-        public
-        view
-        override(ERC721, IERC721, ERC721Consumable)
-        returns (address)
-    {
-        return ERC721.ownerOf(tokenId);
-    }
-
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override
-        returns (string memory)
-    {
-        require(_exists(tokenId), "no");
-        return carData[tokenId].tokenURI;
     }
 
     function list(
@@ -154,17 +126,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         return tokenId;
     }
 
-    function liquidate(uint256 tokenId) external {
-        require(block.timestamp > _leaseData[tokenId].end, "not expired");
-        uint256 incentive = (_leaseData[tokenId].collateral *
-            INCENTIVE_FACTOR) / 1e18;
-
-        TransferHelper.safeTransferNative(msg.sender, incentive);
-
-        _leaseData[tokenId].collateral -= incentive;
-        _setHealth(tokenId, 0);
-    }
-
     function setCollateral(uint256 tokenId, uint256 collateral)
         external
         onlyOwner
@@ -190,6 +151,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
     function rent(uint256 tokenId) external payable onlyAvailable {
         _leaseData[tokenId].rent = msg.value - _carData[tokenId].collateral;
+        _leaseData[tokenId].collateral = _carData[tokenId].collateral;
 
         uint256 duration = (_leaseData[tokenId].rent /
             _carData[tokenId].price) *
@@ -201,19 +163,17 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         _leaseData[tokenId].start = block.timestamp;
         _leaseData[tokenId].end = block.timestamp + duration;
 
-        IInterestToken(interestToken).mint(
+        interestToken.mint(
             _carData[tokenId].insuranceOperator,
-            _carData[tokenId].interestShare
+            _carData[tokenId].insuranceShare
         );
 
-        IInterestToken(interestToken).mint(
+        interestToken.mint(
             address(this),
-            _carData[tokenId].collateral - _carData[tokenId].interestShare
+            _carData[tokenId].collateral - _carData[tokenId].insuranceShare
         );
 
-        IEarnStrategy(earningsProvider).deposit{
-            value: _carData[tokenId].collateral
-        }();
+        earningsProvider.deposit{value: _carData[tokenId].collateral}();
 
         _carData[tokenId].ownershipContract.receiveRent{
             value: _leaseData[tokenId].rent
@@ -239,7 +199,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
         uint256 maxDuration = _leaseData[tokenId].end -
             _leaseData[tokenId].start;
-        uint256 actualDuration = block.timestamp - _leaseData[tokenId].start;
+        uint256 actualDuration = _leaseData[tokenId].returned -
+            _leaseData[tokenId].start;
         uint256 actualRent = (_leaseData[tokenId].rent * actualDuration) /
             maxDuration;
 
@@ -254,9 +215,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         if (amount > accountBalance) {
             amount = accountBalance;
         }
-        IInterestToken(interestToken).burnInterest(amount);
+        interestToken.burnInterest(amount);
 
-        IEarnStrategy(earningsProvider).withdraw(to, amount);
+        earningsProvider.withdraw(to, amount);
 
         emit ClaimEarnigns(msg.sender, to, amount);
     }
@@ -274,14 +235,14 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
         _leaseData[tokenId].status = CarStatus.DAMAGED;
 
-        IInterestToken(interestToken).burnPrincipal(
-            _carData[tokenId].operator,
-            _carData[tokenId].interestShare
+        interestToken.burnPrincipal(
+            _carData[tokenId].insuranceOperator,
+            _carData[tokenId].insuranceShare
         );
 
-        IInterestToken(interestToken).burnPrincipal(
+        interestToken.burnPrincipal(
             address(this),
-            _carData[tokenId].collateral - _carData[tokenId].interestShare
+            _carData[tokenId].collateral - _carData[tokenId].insuranceShare
         );
 
         TransferHelper.safeTransferNative(to, _carData[tokenId].collateral);
@@ -289,56 +250,93 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         emit ClaimInsurance(msg.sender, to, tokenId);
     }
 
-    // function claimRent(address to, uint256 amount) external {
-    //     // it'll just be 0, let them waste gas
-    //     // uint256 shares = _carData[tokenId].ownershipContract.balanceOf(
-    //     //     msg.sender
-    //     // );
-    //     // require(shares > 0, "not an owner");
+    function liquidate(uint256 tokenId) external {
+        require(
+            block.timestamp > _leaseData[tokenId].end,
+            "Vault: LEASE_NOT_EXPIRED"
+        );
+        require(
+            _leaseData[tokenId].status == CarStatus.RENTED,
+            "Vault: NOT_RENTED_TO_BE_LIQUIDATED"
+        );
 
-    //     // uint256 amount = _carData[tokenId].ownershipContract.claim(msg.sender);
-    //     // _carData[tokenId].treasury,
-    //     // );
+        interestToken.burnPrincipal(
+            _carData[tokenId].insuranceOperator,
+            _carData[tokenId].insuranceShare
+        );
 
-    //     if (amount > 0) {
-    //         (bool success, bytes memory returndata) = msg.sender.call{
-    //             value: amount
-    //         }("");
-    //         require(success, string(returndata));
-    //     }
-    // }
+        interestToken.burnPrincipal(
+            address(this),
+            _carData[tokenId].collateral - _carData[tokenId].insuranceShare
+        );
+
+        uint256 incentive = (_leaseData[tokenId].collateral *
+            INCENTIVE_FACTOR) / 1e18;
+
+        earningsProvider.withdraw(msg.sender, incentive);
+        earningsProvider.withdraw(
+            _carData[tokenId].insuranceOperator,
+            _leaseData[tokenId].collateral - incentive
+        );
+    }
 
     function damageReport(uint256 tokenId, uint256 health)
         external
         onlyInsuranceOperator(tokenId)
     {
-        _setHealth(tokenId, health);
-    }
+        require(
+            _leaseData[tokenId].status = CarStatus.RETURNED,
+            "Vault: CAR_NOT_RETURNED"
+        );
 
-    function _setHealth(uint256 tokenId, uint256 health) internal {
+        interestToken.burnPrincipal(
+            _carData[tokenId].insuranceOperator,
+            _carData[tokenId].insuranceShare
+        );
+
+        interestToken.burnPrincipal(
+            address(this),
+            _carData[tokenId].collateral - _carData[tokenId].insuranceShare
+        );
+
         if (health < 100) {
             _leaseData[tokenId].status = CarStatus.DAMAGED;
-            uint256 collect = _leaseData[tokenId].collateral *
-                (1 - health / 100);
+            uint256 recoverAmount = (_leaseData[tokenId].collateral * health) /
+                100;
 
+            _leaseData[tokenId].collateral -= recoverAmount;
+
+            earningsProvider.withdraw(
+                consumerOf(tokenId),
+                _leaseData[tokenId].collateral
+            );
+            earningsProvider.withdraw(
+                _carData[tokenId].insuranceOperator,
+                recoverAmount
+            );
+        } else {
             TransferHelper.safeTransferNative(
                 consumerOf(tokenId),
-                _leaseData[tokenId].collateral - collect
+                _leaseData[tokenId].collateral
             );
-
-            _carData[tokenId].treasury += collect;
-        } else {
             _ready(tokenId);
         }
+
+        emit DamageReport(tokenId, health);
     }
 
     function repair(uint256 tokenId) external onlyInsuranceOperator(tokenId) {
-        _ready(tokenId);
+        require(
+            _leaseData[tokenId].status = CarStatus.DAMAGED,
+            "Vault: CAR_NOT_DAMAGED"
+        );
+
+        ready(tokenId);
+        emit Repair(tokenId);
     }
 
     function _ready(uint256 tokenId) internal {
         changeConsumer(address(0), tokenId);
-
         delete _leaseData[tokenId];
     }
 
@@ -346,11 +344,10 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
         require(
             _leaseData[tokenId].status == CarStatus.AVAILABLE ||
                 _leaseData[tokenId].status == CarStatus.DAMAGED,
-            "SHITS IN USE"
+            "Vault: CAN_NOT_BE_UNLISTED"
         );
 
         // message is tokenId + IVault.unlist.selector
-
         uint256 total;
         for (uint256 i; i < signatures.length; ) {
             address signer = ECDSA.recover(
@@ -361,9 +358,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
             );
 
             total += _carData[tokenId].ownershipContract.balanceOf(signer);
-            uint256 amount = _carData[tokenId].ownershipContract.claim(signer);
-
-            TransferHelper.safeTransferNative(signer, amount);
 
             unchecked {
                 i++;
@@ -372,10 +366,42 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable {
 
         require(
             total == _carData[tokenId].ownershipContract.totalSupply(),
-            "EVERYONE!!!.gif"
+            "Vault: NOT_ALL_OWNERS_AGREE"
         );
 
         _burn(tokenId);
+    }
+
+    function migrateEarningsProvider(address newProvider) external onlyOwner {
+        uint256 balance = earningsProvider.balanceOf();
+        earningsProvider.withdraw(address(this), balance);
+
+        IEarnStrategy(newProvider).deposit{value: balance}();
+        interestToken.setEarningsProvider(newProvider);
+    }
+
+    // --------------- Getters ---------------
+    function carData(uint256 tokenId) public view returns (CarData memory) {
+        return _carData[tokenId];
+    }
+
+    function ownerOf(uint256 tokenId)
+        public
+        view
+        override(ERC721, IERC721, ERC721Consumable)
+        returns (address)
+    {
+        return ERC721.ownerOf(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        require(_exists(tokenId), "no");
+        return carData[tokenId].tokenURI;
     }
 
     function supportsInterface(bytes4 interfaceId)

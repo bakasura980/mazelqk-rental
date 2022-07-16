@@ -4,15 +4,14 @@ pragma solidity ^0.8.0;
 import "../interfaces/tokens/IInterestToken.sol";
 import "../interfaces/strategies/earn-strategies/IEarnStrategy.sol";
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract InterestToken is ERC20, IInterestToken {
+contract InterestToken is ERC20, Ownable, IInterestToken {
     uint256 internal constant MATH_UNITS = 1e20;
 
-    address public override vault;
-
     /** @notice Strategy that is currently used for earnings */
-    address public override earningsStrategy;
+    address public override earningsProvider;
 
     /** @notice Store earn strategy balance for tracking interest accrual over time*/
     uint256 public override balanceAtIndex;
@@ -26,22 +25,14 @@ contract InterestToken is ERC20, IInterestToken {
     /** @notice Tracks Principal Deposited */
     mapping(address => uint256) public override userPrincipal;
 
-    modifier onlyVault() {
-        require(msg.sender == vault, "InterestToken: ONLY_VAULT");
-        _;
-    }
-
-    constructor(address vaultAddress, address earnStrategyAddress)
-        ERC20("MAZELQK_TOKEN", "MZLK")
-    {
-        vault = vaultAddress;
-        earningsStrategy = earnStrategyAddress;
+    constructor(address earnProviderAddress) ERC20("MAZELQK_TOKEN", "MZLK") {
+        earningsProvider = earnProviderAddress;
     }
 
     /// @notice Creates `amount` tokens and assigns them to `account`, increasing the total supply.
     /// @param account The account that is depositing/borrowing
     /// @param amount The amount the account is depositing/borrowing
-    function mint(address account, uint256 amount) external override onlyVault {
+    function mint(address account, uint256 amount) external override onlyOwner {
         _userSnapshot(account);
 
         _mint(account, amount);
@@ -56,7 +47,7 @@ contract InterestToken is ERC20, IInterestToken {
     function burnPrincipal(address account, uint256 amount)
         external
         override
-        onlyVault
+        onlyOwner
     {
         _burn(account, amount);
         userPrincipal[account] -= amount;
@@ -68,7 +59,7 @@ contract InterestToken is ERC20, IInterestToken {
     function burnInterest(address account, uint256 amount)
         external
         override
-        onlyVault
+        onlyOwner
     {
         uint256 interestBalance = balanceOf(account);
         if (amount > interestBalance) {
@@ -84,7 +75,7 @@ contract InterestToken is ERC20, IInterestToken {
     function _burn(address account, uint256 amount)
         internal
         override
-        onlyVault
+        onlyOwner
     {
         _userSnapshot(account);
         super._burn(account, amount);
@@ -165,7 +156,12 @@ contract InterestToken is ERC20, IInterestToken {
         balanceAtIndex_ = balanceAtIndex;
 
         uint256 balancePrev = balanceAtIndex_;
-        uint256 balanceNew = IEarnStrategy(earningsStrategy).balanceOf();
+        uint256 balanceNew = IEarnStrategy(earningsProvider).balanceOf();
+
+        require(
+            balanceNew >= balancePrev,
+            "InterestToken: NEGATIVE_ACCUMULATION"
+        );
 
         if (balancePrev > 0 && balancePrev < balanceNew) {
             // Increase the index proportionally to the balances:
@@ -189,15 +185,15 @@ contract InterestToken is ERC20, IInterestToken {
         }
     }
 
-    /// @notice On migration the vault should set the new earn strategy if any changes
-    /// @param newStrategy The address of the new strategy
-    function setEarningsStrategy(address newStrategy)
+    /// @notice On migration the vault should set the new earn provider if any changes
+    /// @param newProvider The address of the new provider
+    function setEarningsProvider(address newProvider)
         external
         override
-        onlyVault
+        onlyOwner
     {
-        earningsStrategy = newStrategy;
-        emit SetEarningsStrategy(newStrategy);
+        earningsProvider = newProvider;
+        emit SetEarningsProvider(newProvider);
     }
 
     /// @notice Transfer tokens on behalf of another user
