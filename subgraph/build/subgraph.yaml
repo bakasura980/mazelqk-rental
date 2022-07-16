@@ -1,0 +1,29 @@
+specVersion: 0.0.4
+schema:
+  file: schema.graphql
+dataSources:
+  - kind: ethereum
+    name: InterestToken
+    network: mainnet
+    source:
+      address: "0x9462BaC7722Da114C11893EC6b50b15F92cB109a"
+      abi: InterestToken
+      startBlock: 14403575
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.5
+      language: wasm/assemblyscript
+      entities:
+        - Approval
+        - SetEarningsStrategy
+        - Snapshot
+        - Transfer
+      abis:
+        - name: InterestToken
+          file: InterestToken/abis/InterestToken.json
+      eventHandlers:
+        - event: Snapshot(uint256,uint256)
+          handler: handleSnapshot
+        - event: Transfer(indexed address,indexed address,uint256)
+          handler: handleTransfer
+      file: InterestToken/InterestToken.wasm

@@ -10,14 +10,16 @@
     "rootDirs": [
       "./scripts",
       "./test",
-      "./utils",
+      "./utils"
     ],
   },
   "include": [
     "./scripts",
     "./utils",
     "./test",
-    "./typechain"
+    "./typechain",
+    "./subgraph",
+    "./types.d.ts"
   ],
   "files": [
     "./hardhat.config.ts"

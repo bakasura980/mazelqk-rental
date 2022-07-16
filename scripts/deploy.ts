@@ -6,7 +6,7 @@
 import { ethers } from "hardhat";
 import * as utils from "../utils";
 
-async function main () {
+async function main() {
   const [owner, alice, bob, carl, insuranceDao] = await ethers.getSigners();
 
   const strategyAave = await (

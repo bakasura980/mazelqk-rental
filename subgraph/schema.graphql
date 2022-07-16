@@ -1,0 +1,77 @@
+type Account @entity {
+	id: ID!
+	asERC20: InterestToken
+	ERC20balances: [ERC20Balance!]! @derivedFrom(field: "account")
+	ERC20approvalsOwner: [ERC20Approval!]! @derivedFrom(field: "owner")
+	ERC20approvalsSpender: [ERC20Approval!]! @derivedFrom(field: "spender")
+	ERC20transferFromEvent: [ERC20Transfer!]! @derivedFrom(field: "from")
+	ERC20transferToEvent: [ERC20Transfer!]! @derivedFrom(field: "to")
+	events: [Event!]! @derivedFrom(field: "emitter")
+}
+
+type InterestToken @entity(immutable: true) {
+	id: ID!
+	asAccount: Account!
+	name: String
+	symbol: String
+	decimals: Int!
+	totalSupply: ERC20Balance!
+	balances: [ERC20Balance!]! @derivedFrom(field: "contract")
+	approvals: [ERC20Approval!]! @derivedFrom(field: "contract")
+	transfers: [ERC20Transfer!]! @derivedFrom(field: "contract")
+  	snapshots: [Snapshot!]! @derivedFrom(field: "contract")
+}
+
+type Snapshot @entity {
+	id: ID!
+	contract: InterestToken!
+	interestIndex: BigInt
+	balanceAtIndex: BigInt
+}
+
+type ERC20Balance @entity {
+	id: ID!
+	contract: InterestToken!
+	account: Account
+	value: BigDecimal!
+	valueExact: BigInt!
+	transferFromEvent: [ERC20Transfer!]! @derivedFrom(field: "fromBalance")
+	transferToEvent: [ERC20Transfer!]! @derivedFrom(field: "toBalance")
+}
+
+type ERC20Approval @entity {
+	id: ID!
+	contract: InterestToken!
+	owner: Account!
+	spender: Account!
+	value: BigDecimal!
+	valueExact: BigInt!
+}
+
+type ERC20Transfer implements Event @entity(immutable: true) {
+	id: ID!
+	emitter: Account!
+	transaction: Transaction!
+	timestamp: BigInt!
+	contract: InterestToken!
+	from: Account
+	fromBalance: ERC20Balance
+	to: Account
+	toBalance: ERC20Balance
+	value: BigDecimal!
+	valueExact: BigInt!
+}
+
+interface Event {
+	id: ID!
+	transaction: Transaction!
+	emitter: Account!
+	timestamp: BigInt!
+}
+
+type Transaction @entity(immutable: true) {
+	id: ID!
+	timestamp: BigInt!
+	blockNumber: BigInt!
+	events: [Event!]! @derivedFrom(field: "transaction")
+}
