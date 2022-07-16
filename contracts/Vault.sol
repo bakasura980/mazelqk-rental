@@ -156,14 +156,15 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         override
         onlyAvailable(tokenId)
     {
-        _leaseData[tokenId].rent = msg.value - _carData[tokenId].collateral;
+        uint256 rent = msg.value - _carData[tokenId].collateral;
+        _leaseData[tokenId].rent = rent;
 
         // uint256 duration = _leaseData[tokenId].rent /
         //     (_carData[tokenId].price *
         //     _perDayFactor * / 1e18) *
         //     1 days;
 
-        uint256 duration = (_leaseData[tokenId].rent * 1 days * 1e18) /
+        uint256 duration = (rent * 1 days * 1e18) /
             (_carData[tokenId].price * _perDayFactor);
 
         if (duration == 0) {
@@ -185,9 +186,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         earningsProvider.deposit{value: _carData[tokenId].collateral}();
 
-        _carData[tokenId].ownershipContract.receiveRent{
-            value: _leaseData[tokenId].rent
-        }();
+        _carData[tokenId].ownershipContract.receiveRent{value: rent}();
 
         changeConsumer(msg.sender, tokenId);
 
