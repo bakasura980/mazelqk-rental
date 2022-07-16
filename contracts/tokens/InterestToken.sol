@@ -25,7 +25,9 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
     /** @notice Tracks Principal Deposited */
     mapping(address => uint256) public override userPrincipal;
 
-    constructor(address earnProviderAddress) ERC20("MAZELQK_TOKEN", "MZLK") {
+    constructor(address earnProviderAddress)
+        ERC20("MAZELQK_INTEREST_TOKEN", "MZLKI")
+    {
         earningsProvider = earnProviderAddress;
     }
 
@@ -120,23 +122,13 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         override(ERC20, IERC20)
         returns (uint256 userBalance)
     {
-        (uint256 currentIndex, ) = calcNewIndex();
-        return balanceOfAtIndex(account, currentIndex) - userPrincipal[account];
-    }
-
-    /// @notice Calculates a given user balance at a specific index
-    /// @param account The user to calculate the index for
-    /// @param index The index to calculate the balance at
-    /// @return userBalance The balance of the user in that index including the accumulated interest
-    function balanceOfAtIndex(address account, uint256 index)
-        public
-        view
-        returns (uint256 userBalance)
-    {
         // userIndex[account] is not user balance, we're reusing the variable to save gas
         userBalance = userIndex[account];
         if (userBalance > 0) {
-            userBalance = (super.balanceOf(account) * index) / userBalance;
+            (uint256 currentIndex, ) = calcNewIndex();
+            userBalance =
+                ((super.balanceOf(account) * currentIndex) / userBalance) -
+                userPrincipal[account];
         }
     }
 
@@ -158,10 +150,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         uint256 balancePrev = balanceAtIndex_;
         uint256 balanceNew = IEarnStrategy(earningsProvider).balanceOf();
 
-        require(
-            balanceNew >= balancePrev,
-            "InterestToken: NEGATIVE_ACCUMULATION"
-        );
+        require(balanceNew >= balancePrev, "NEGATIVE_ACCUMULATION");
 
         if (balancePrev > 0 && balancePrev < balanceNew) {
             // Increase the index proportionally to the balances:
@@ -205,10 +194,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         address to,
         uint256 amount
     ) public override(ERC20, IERC20) returns (bool) {
-        require(
-            amount <= allowance(from, msg.sender),
-            "InterestToken: NOT_ENOUGH_ALLOWANCE"
-        );
+        require(amount <= allowance(from, msg.sender), "NOT_ENOUGH_ALLOWANCE");
 
         return _accrualTransfer(from, to, amount);
     }
@@ -232,10 +218,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         address receiver,
         uint256 amount
     ) internal returns (bool) {
-        require(
-            sender != receiver,
-            "InterestToken: TRANSFER_BETWEEN_THE_SAME_ADDRESSES"
-        );
+        require(sender != receiver, "TRANSFER_BETWEEN_THE_SAME_ADDRESSES");
 
         _userSnapshot(sender);
         _userSnapshot(receiver);

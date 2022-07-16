@@ -1,17 +1,46 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.14;
 
+import "./tokens/IInterestToken.sol";
+import "./tokens/IOwnershipToken.sol";
+import "./strategies/earn-strategies/IEarnStrategy.sol";
+
 interface IVault {
+    event List(
+        uint256 tokenId,
+        uint256 price,
+        string tokenUri,
+        uint256 collateral,
+        uint256 insuranceShare,
+        uint256 reviewPeriod,
+        address insuranceOperator,
+        address ownershipContract
+    );
+    event SetCollateral(uint256 tokenId, uint256 collateral);
+    event SetInsuranceShare(uint256 tokenId, uint256 insuranceShare);
+    event Rent(uint256 tokenId, address renter, uint256 duration);
+    event Extend(uint256 tokenId, uint256 duration);
+    event Return(
+        uint256 tokenId,
+        uint256 leaseStart,
+        uint256 leaseReturn,
+        uint256 leaseEnd
+    );
+    event ClaimEarnigns(address claimer, address recipient, uint256 amount);
+    event ClaimInsurance(address renter, address recipient, uint256 tokenId);
+    event Liquidate(uint256 tokenId);
+    event DamageReport(uint256 tokenId, uint256 health);
+    event Repair(uint256 tokenId);
+    event UnList(uint256 tokenId);
+
     struct CarData {
-        bool available;
         uint256 price;
         string tokenURI;
-        // running total
-        uint256 treasury;
         uint256 collateral;
         uint256 insuranceShare;
+        uint256 reviewPeriod;
         address insuranceOperator;
-        address ownershipContract;
+        IOwnershipToken ownershipContract;
     }
 
     struct LeaseData {
@@ -20,7 +49,6 @@ interface IVault {
         uint256 returned;
         CarStatus status;
         uint256 rent;
-        uint256 collateral;
     }
 
     enum CarStatus {
@@ -30,19 +58,22 @@ interface IVault {
         DAMAGED
     }
 
+    function interestToken() external view returns (IInterestToken);
+
+    function earningsProvider() external view returns (IEarnStrategy);
+
     function carData(uint256 tokenId) external view returns (CarData memory);
 
     function list(
         address[] calldata owners,
         uint256[] calldata shares,
         uint256 price,
-        string tokenUri,
+        string calldata tokenUri,
         uint256 collateral,
         uint256 insuranceShare,
+        uint256 reviewPeriod,
         address insuranceOperator
     ) external returns (uint256);
-
-    function liquidate(uint256 tokenId) external;
 
     function setCollateral(uint256 tokenId, uint256 collateral) external;
 
@@ -58,6 +89,8 @@ interface IVault {
     function claimEarnigns(address to, uint256 amount) external;
 
     function claimInsurance(address to, uint256 tokenId) external;
+
+    function liquidate(uint256 tokenId) external;
 
     function damageReport(uint256 tokenId, uint256 health) external;
 

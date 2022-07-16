@@ -8,8 +8,6 @@ interface IInterestToken is IERC20, IERC20Metadata {
     event Snapshot(uint256 index, uint256 balance);
     event SetEarningsProvider(address newStrategy);
 
-    function vault() external view returns (address);
-
     function earningsProvider() external view returns (address);
 
     function balanceAtIndex() external view returns (uint256);
@@ -34,9 +32,4 @@ interface IInterestToken is IERC20, IERC20Metadata {
         external
         view
         returns (uint256 index, uint256 balanceCurrent);
-
-    function balanceOfAtIndex(address account, uint256 index)
-        external
-        view
-        returns (uint256 balance);
 }

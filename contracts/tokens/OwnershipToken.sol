@@ -9,12 +9,12 @@ import "../libraries/TransferHelper.sol";
 import "../interfaces/tokens/IOwnershipToken.sol";
 
 contract OwnershipToken is ERC20, IOwnershipToken {
-    uint256 public rentBalance;
+    uint256 public override rentBalance;
 
-    mapping(address => uint256) public userClaimed;
+    mapping(address => uint256) public override userClaimed;
 
-    mapping(address => uint256) public userSnapshotTreasury;
-    mapping(address => uint256) public userSnapshotClaimable;
+    mapping(address => uint256) public override userSnapshotTreasury;
+    mapping(address => uint256) public override userSnapshotClaimable;
 
     uint256 internal constant TOTAL_SHARES = 100e18;
 
@@ -33,11 +33,8 @@ contract OwnershipToken is ERC20, IOwnershipToken {
             string(abi.encodePacked("COT", Strings.toString(tokenId)))
         )
     {
-        require(owners.length <= 10, "OwnershipToken: TOO_MANY_OWNERS");
-        require(
-            owners.length == shares.length,
-            "OwnershipToken: SHARES_NOT_ENOUGH"
-        );
+        require(owners.length <= 10, "TOO_MANY_OWNERS");
+        require(owners.length == shares.length, "SHARES_NOT_ENOUGH");
 
         for (uint256 i; i < owners.length; ) {
             _mint(owners[i], shares[i]);
@@ -47,10 +44,7 @@ contract OwnershipToken is ERC20, IOwnershipToken {
             }
         }
 
-        require(
-            totalSupply() == TOTAL_SHARES,
-            "OwnershipToken: MISSING_SHARES"
-        );
+        require(totalSupply() == TOTAL_SHARES, "MISSING_SHARES");
     }
 
     function _beforeTokenTransfer(
@@ -62,12 +56,12 @@ contract OwnershipToken is ERC20, IOwnershipToken {
         snapshot(to);
     }
 
-    function snapshot(address account) public {
+    function snapshot(address account) public override {
         userSnapshotClaimable[account] += _calculateCurrent(account);
         userSnapshotTreasury[account] = rentBalance;
     }
 
-    function claimable(address account) public view returns (uint256) {
+    function claimable(address account) public view override returns (uint256) {
         return
             userSnapshotClaimable[account] +
             _calculateCurrent(account) -
@@ -85,11 +79,8 @@ contract OwnershipToken is ERC20, IOwnershipToken {
             TOTAL_SHARES;
     }
 
-    function claim(address to, uint256 amount) external returns (uint256) {
-        require(
-            amount <= claimable(msg.sender),
-            "OwnershipToken: NOT_ENOUGH_TO_CLAIM"
-        );
+    function claim(address to, uint256 amount) external override {
+        require(amount <= claimable(msg.sender), "NOT_ENOUGH_TO_CLAIM");
 
         userClaimed[msg.sender] += amount;
         TransferHelper.safeTransferNative(to, amount);
@@ -97,7 +88,7 @@ contract OwnershipToken is ERC20, IOwnershipToken {
         emit Claim(msg.sender, to, amount);
     }
 
-    function receiveRent() external payable {
+    function receiveRent() external payable override {
         rentBalance += msg.value;
         emit ReceiveRent(rentBalance, msg.value);
     }
