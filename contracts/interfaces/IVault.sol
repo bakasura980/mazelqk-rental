@@ -26,7 +26,7 @@ interface IVault {
         uint256 leaseReturn,
         uint256 leaseEnd
     );
-    event ClaimEarnigns(address claimer, address recipient, uint256 amount);
+    event ClaimEarnings(address claimer, address recipient, uint256 amount);
     event ClaimInsurance(address renter, address recipient, uint256 tokenId);
     event Liquidate(uint256 tokenId);
     event DamageReport(uint256 tokenId, uint256 health);
@@ -64,6 +64,8 @@ interface IVault {
 
     function carData(uint256 tokenId) external view returns (CarData memory);
 
+    function carLease(uint256 tokenId) external view returns (LeaseData memory);
+
     function list(
         address[] calldata owners,
         uint256[] calldata shares,
@@ -86,7 +88,7 @@ interface IVault {
 
     function headBack(uint256 tokenId) external;
 
-    function claimEarnigns(address to, uint256 amount) external;
+    function claimEarnings(address to, uint256 amount) external;
 
     function claimInsurance(address to, uint256 tokenId) external;
 
