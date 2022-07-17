@@ -56,11 +56,15 @@ contract OwnershipToken is ERC20, IOwnershipToken {
         snapshot(to);
     }
 
+    /// @notice Distribute an amount of the balance for an account based on his share
+    /// @param account The account to snapshot
     function snapshot(address account) public override {
         userSnapshotClaimable[account] += _calculateCurrent(account);
         userSnapshotTreasury[account] = rentBalance;
     }
 
+    /// @notice Calculate the overall balance and then subtract the one already claimed
+    /// @param account The account to calculate the balance for
     function claimable(address account) public view override returns (uint256) {
         return
             userSnapshotClaimable[account] +
@@ -68,6 +72,8 @@ contract OwnershipToken is ERC20, IOwnershipToken {
             userClaimed[account];
     }
 
+    /// @notice Calculate current balance accumulation based on the share and the amount you have already claimed
+    /// @param account The account to calculate the balance for
     function _calculateCurrent(address account)
         internal
         view
@@ -79,6 +85,9 @@ contract OwnershipToken is ERC20, IOwnershipToken {
             TOTAL_SHARES;
     }
 
+    /// @notice Claim from the balance based on your shares
+    /// @param to The recipient of tokens
+    /// @param amount The amount of tokens
     function claim(address to, uint256 amount) external override {
         require(amount <= claimable(msg.sender), "NOT_ENOUGH_TO_CLAIM");
 
@@ -88,6 +97,7 @@ contract OwnershipToken is ERC20, IOwnershipToken {
         emit Claim(msg.sender, to, amount);
     }
 
+    /// @notice Used to track principal to be able to correctly to distribute the shares after that
     function receiveRent() external payable override {
         rentBalance += msg.value;
         emit ReceiveRent(rentBalance, msg.value);

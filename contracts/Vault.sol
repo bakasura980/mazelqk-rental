@@ -64,6 +64,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         _perDayFactor = perDayFactor_;
     }
 
+    /// @notice List a new car on the rental market and create an NFT for it
     function list(
         address[] calldata owners,
         uint256[] calldata shares,
@@ -106,6 +107,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return tokenId;
     }
 
+    /// @notice Rent a car by providing insurance collateral and rental amount
+    /// @notice The duration of the service is calculated automatically based on the provided rental amount
+    /// @param tokenId The id of the NFT you want to rent
     function rent(uint256 tokenId) external payable override {
         if (!_exists(tokenId)) {
             revert Errors.DOES_NOT_EXISTS();
@@ -148,6 +152,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit Rent(tokenId, msg.sender, duration);
     }
 
+    /// @notice Extend the rental period of a car you have already lended
+    /// @param tokenId The id of the NFT you want to extend the period for
     function extend(uint256 tokenId) external payable override inTime(tokenId) {
         uint256 duration = (msg.value * 1 days * 1e18) /
             (_carData[tokenId].price * _perDayFactor);
@@ -161,6 +167,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit Extend(tokenId, duration);
     }
 
+    /// @notice Return a car and get your insurance collateral back
+    /// @param tokenId The id of the NFT you are returning back
     function headBack(uint256 tokenId) external override inTime(tokenId) {
         _leaseData[tokenId].returned = block.timestamp;
         _leaseData[tokenId].status = CarStatus.RETURNED;
@@ -187,6 +195,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         );
     }
 
+    /// @notice Insurance operators or protocol owner can withdraw their earnings from the earnings provider
+    /// @param to The recipient of the earnings amount
+    /// @param amount The amount of earnings
     function claimEarnings(address to, uint256 amount) external override {
         address claimer = msg.sender;
         if (msg.sender == owner()) {
@@ -199,6 +210,10 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit ClaimEarnings(claimer, to, amount);
     }
 
+    /// @notice A renter is able to withdraw his insurance in case the insurance operator does not
+    /// @notice perform a review on time
+    /// @param to The recipient of the insurance amount
+    /// @param tokenId The id of the NFT
     function claimInsurance(address to, uint256 tokenId) external override {
         if (_leaseData[tokenId].status != CarStatus.RETURNED) {
             revert Errors.STATUS_NOT_RETURNED();
@@ -227,6 +242,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit ClaimInsurance(msg.sender, to, tokenId);
     }
 
+    /// @notice Liquidate a car position in case a renter has not returned it on time(Steel)
+    /// @param tokenId The id of the NFT to liquidate
     function liquidate(uint256 tokenId) external override {
         if (block.timestamp <= _leaseData[tokenId].end) {
             revert Errors.LEASE_NOT_EXPIRED();
@@ -257,6 +274,9 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit Liquidate(tokenId);
     }
 
+    /// @notice Evaluate car damage after being returned from a renter
+    /// @param tokenId The id of the NFT to evaluate
+    /// @param health The state of the car in the time of return(how healthy it is)
     function damageReport(uint256 tokenId, uint256 health)
         external
         override
@@ -301,6 +321,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit DamageReport(tokenId, health);
     }
 
+    /// @notice Repair car damage after being returned from a renter
+    /// @param tokenId The id of the NFT to "repair"
     function repair(uint256 tokenId)
         external
         override
@@ -314,11 +336,16 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit Repair(tokenId);
     }
 
+    /// @notice Make the car available for renting again
+    /// @param tokenId The id of the NFT to make available again
     function _ready(uint256 tokenId) internal {
         changeConsumer(address(0), tokenId);
         delete _leaseData[tokenId];
     }
 
+    /// @notice Remove a car from being lended by performing a validation if all the owners have signer their approval
+    /// @param tokenId The id of the NFT to remove
+    /// @param signatures The approvals of the owners
     function unlist(uint256 tokenId, bytes[] calldata signatures)
         external
         override
@@ -356,6 +383,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         emit UnList(tokenId);
     }
 
+    /// @notice Migrate from one earnings provider to another
+    /// @param newProvider The address of the new earnings provider
     function migrateEarningsProvider(address newProvider) external onlyOwner {
         uint256 balance = earningsProvider.balanceOf();
         earningsProvider.withdraw(address(this), balance);
@@ -367,6 +396,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     receive() external payable {}
 
     // --------------- Getters ---------------
+    /// @notice Return car data details
+    /// @param tokenId The id of the NFT to search for
     function carData(uint256 tokenId)
         external
         view
@@ -376,6 +407,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return _carData[tokenId];
     }
 
+    /// @notice Return car leasing details
+    /// @param tokenId The id of the NFT to search for
     function carLease(uint256 tokenId)
         external
         view
@@ -385,6 +418,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return _leaseData[tokenId];
     }
 
+    /// @notice Owner of an NFT
+    /// @param tokenId The id of the NFT to search for
     function ownerOf(uint256 tokenId)
         public
         view
@@ -394,6 +429,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return ERC721.ownerOf(tokenId);
     }
 
+    /// @notice NFT image URI
+    /// @param tokenId The id of the NFT to search for
     function tokenURI(uint256 tokenId)
         public
         view
@@ -406,6 +443,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return _carData[tokenId].tokenURI;
     }
 
+    /// @notice supportsInterface
+    /// @param interfaceId The interface to check if supported
     function supportsInterface(bytes4 interfaceId)
         public
         view
