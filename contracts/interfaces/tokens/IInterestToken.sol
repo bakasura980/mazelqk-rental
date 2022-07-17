@@ -22,7 +22,9 @@ interface IInterestToken is IERC20, IERC20Metadata {
 
     function burnPrincipal(address account, uint256 amount) external;
 
-    function burnInterest(address account, uint256 amount) external;
+    function burnInterest(address account, uint256 amount)
+        external
+        returns (uint256);
 
     function setEarningsProvider(address newStrategy) external;
 

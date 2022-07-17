@@ -1,7 +1,9 @@
 import chai from "chai";
 import * as utils from "../utils";
 import { ethers, run } from "hardhat";
-import { IERC20, StrategyAave, Vault } from "../typechain";
+import { Vault, StrategyAave } from "../typechain";
+
+import { abi as VaultAbi } from "../artifacts/contracts/Vault.sol/Vault.json";
 
 const { expect } = chai;
 
@@ -134,7 +136,7 @@ describe("Vault", function () {
     const carLease = await vault.carLease(0);
     expect(carLease[1]).to.be.equal(carLease[0].add(90 * 24 * 60 * 60));
     expect(carLease[2]).to.be.equal(0);
-    expect(carLease[3]).to.be.equal(0); // Available
+    expect(carLease[3]).to.be.equal(1); // Rented
     expect(carLease[4]).to.be.equal(ethers.utils.parseEther("45")); // amount - collateral
 
     const interestTokenAddress = await vault.interestToken();
@@ -254,6 +256,30 @@ describe("Vault", function () {
     ).to.be.revertedWith("OUT_OF_TIME");
   });
 
+  it("Should revert extend rental period in case of extend from not a renter", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    await vault.rent(0, { value: ethers.utils.parseEther("50") });
+    await expect(
+      vault
+        .connect(signers[1])
+        .extend(0, { value: ethers.utils.parseEther("45") })
+    ).to.be.revertedWith("NOT_A_RENTER");
+  });
+
   it("Should return car back", async function () {
     await vault.list(
       [signers[1].address, signers[2].address, signers[3].address],
@@ -277,8 +303,8 @@ describe("Vault", function () {
     await vault.headBack(0);
 
     const carData = await vault.carData(0);
-    expect(await ethers.provider.getBalance(carData[6])).to.be.equal(
-      "44500005787037037037"
+    expect(await ethers.provider.getBalance(carData[6])).to.be.gte(
+      "44500000000000000000"
     );
   });
 
@@ -305,7 +331,7 @@ describe("Vault", function () {
     await expect(vault.headBack(0)).to.be.revertedWith("OUT_OF_TIME");
   });
 
-  xit("Should be able for insurance & protocol to claim interest earnings", async function () {
+  it("Should be able for insurance & protocol to claim interest earnings", async function () {
     await vault.list(
       [signers[1].address, signers[2].address, signers[3].address],
       [
@@ -333,16 +359,15 @@ describe("Vault", function () {
     expect(await interestToken.balanceOf(vault.address)).to.be.gt(0);
     expect(await interestToken.balanceOf(signers[9].address)).to.be.gt(0);
 
-    await vault
-      .connect(signers[9])
-      .claimEarnings(signers[9].address, ethers.utils.parseEther("100"));
-
     await vault.claimEarnings(
       signers[0].address,
       ethers.utils.parseEther("100")
     );
-
     expect(await interestToken.balanceOf(vault.address)).to.be.equal(0);
+
+    await vault
+      .connect(signers[9])
+      .claimEarnings(signers[9].address, ethers.utils.parseEther("100"));
     expect(await interestToken.balanceOf(signers[9].address)).to.be.equal(0);
   });
 
@@ -635,9 +660,7 @@ describe("Vault", function () {
     expect(balanceAfter.sub(balanceBefore)).to.be.equal(
       ethers.utils.parseEther("2.5")
     );
-    expect(balanceInsuranceAfter.sub(balanceInsuranceBefore)).to.be.equal(
-      ethers.utils.parseEther("2.492798615330386712")
-    );
+    expect(balanceInsuranceAfter).to.be.gt(balanceInsuranceBefore);
 
     expect(await interestToken.userPrincipal(vault.address)).to.be.equal(0);
     expect(await interestToken.userPrincipal(signers[9].address)).to.be.equal(0);
@@ -748,5 +771,187 @@ describe("Vault", function () {
     await expect(vault.connect(signers[9]).repair(0)).to.be.revertedWith(
       "CAR_NOT_DAMAGED"
     );
+  });
+
+  it("Should migrate to another earnings provider", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    await vault.rent(0, { value: ethers.utils.parseEther("50") });
+
+    const StrategyAaveContract = await ethers.getContractFactory(
+      "StrategyAave"
+    );
+    const prevEarningsProvider = StrategyAaveContract.attach(
+      strategyAave.address
+    );
+    strategyAave = await StrategyAaveContract.deploy(
+      utils.AavePoolAddress,
+      utils.wethGatewayAddress,
+      utils.aaveDataProviderAddress,
+      utils.AaveIncentivesController
+    );
+    await strategyAave.deployed();
+    await strategyAave.transferOwnership(vault.address);
+
+    const balanceCurrent = await prevEarningsProvider.balanceOf();
+    await vault.migrateEarningsProvider(strategyAave.address);
+
+    const interestTokenAddress = await vault.interestToken();
+    const InterestToken = await ethers.getContractFactory("InterestToken");
+    const interestToken = InterestToken.attach(interestTokenAddress);
+    expect(await interestToken.earningsProvider()).to.be.equal(
+      strategyAave.address
+    );
+
+    expect(await prevEarningsProvider.balanceOf()).to.be.equal(0);
+    expect(await strategyAave.balanceOf()).to.be.gte(balanceCurrent);
+  });
+
+  it("Should revert in the case not an owner migrate earning provider", async function () {
+    await expect(
+      vault.connect(signers[1]).migrateEarningsProvider(strategyAave.address)
+    ).to.be.revertedWith("Ownable: caller is not the owner");
+  });
+
+  it("Should be able to unlist", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    const IVault = new ethers.utils.Interface(VaultAbi);
+    const msg = ethers.utils.defaultAbiCoder.encode(
+      ["uint256", "bytes4"],
+      [0, IVault.getSighash("unlist")]
+    );
+    const hashMsg = ethers.utils.keccak256(msg);
+    const hashData = ethers.utils.arrayify(hashMsg);
+    const signMsg1 = await signers[1].signMessage(hashData);
+    const signMsg2 = await signers[2].signMessage(hashData);
+    const signMsg3 = await signers[3].signMessage(hashData);
+    const signatures = [signMsg1, signMsg2, signMsg3];
+
+    await vault.unlist(0, signatures);
+    await expect(vault.ownerOf(0)).to.be.revertedWith(
+      "ERC721: owner query for nonexistent token"
+    );
+  });
+
+  it("Should revert in the case the car has been rented or has been returned", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    await vault.rent(0, { value: ethers.utils.parseEther("50") });
+
+    const IVault = new ethers.utils.Interface(VaultAbi);
+    const msg = ethers.utils.defaultAbiCoder.encode(
+      ["uint256", "bytes4"],
+      [0, IVault.getSighash("unlist")]
+    );
+    const hashMsg = ethers.utils.keccak256(msg);
+    const hashData = ethers.utils.arrayify(hashMsg);
+    const signMsg1 = await signers[1].signMessage(hashData);
+    const signMsg2 = await signers[2].signMessage(hashData);
+    const signMsg3 = await signers[3].signMessage(hashData);
+    const signatures = [signMsg1, signMsg2, signMsg3];
+
+    await expect(vault.unlist(0, signatures)).to.be.revertedWith(
+      "CAN_NOT_BE_UNLISTED"
+    );
+  });
+
+  it("Should revert in the case not all car owners have signed their confirmation", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    const IVault = new ethers.utils.Interface(VaultAbi);
+    const msg = ethers.utils.defaultAbiCoder.encode(
+      ["uint256", "bytes4"],
+      [0, IVault.getSighash("unlist")]
+    );
+    const hashMsg = ethers.utils.keccak256(msg);
+    const hashData = ethers.utils.arrayify(hashMsg);
+    const signMsg1 = await signers[1].signMessage(hashData);
+    const signMsg2 = await signers[2].signMessage(hashData);
+    const signatures = [signMsg1, signMsg2];
+
+    await expect(vault.unlist(0, signatures)).to.be.revertedWith(
+      "NOT_ALL_OWNERS_AGREE"
+    );
+  });
+
+  it("Should return tokenURI", async function () {
+    await vault.list(
+      [signers[1].address, signers[2].address, signers[3].address],
+      [
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("30"),
+        ethers.utils.parseEther("60"),
+      ],
+      ethers.utils.parseEther("50"),
+      "test.image.png",
+      ethers.utils.parseEther("5"),
+      ethers.utils.parseEther("0.05"),
+      2 * 60 * 60 * 24, // 2 day for reviewing
+      signers[9].address
+    );
+
+    const tokenURI = await vault.tokenURI(0);
+    expect(tokenURI).to.be.equal("test.image.png");
+  });
+
+  it("Should revert in case of getting tokenURI for not existing token", async function () {
+    await expect(vault.tokenURI(0)).to.be.revertedWith("DOES_NOT_EXISTS");
+  });
+
+  it("Should return supported interfaces", async function () {
+    await vault.supportsInterface("0xabababab");
   });
 });
