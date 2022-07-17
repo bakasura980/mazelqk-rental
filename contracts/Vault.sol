@@ -29,25 +29,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     mapping(uint256 => CarData) private _carData;
     mapping(uint256 => LeaseData) private _leaseData;
 
-    modifier onlyAvailable(uint256 tokenId) {
-        _onlyAvailable(tokenId);
-        _;
-    }
-
-    function _onlyAvailable(uint256 tokenId) internal view {
-        if (!_exists(tokenId)) {
-            revert Errors.DOES_NOT_EXISTS();
-        }
-
-        if (consumerOf(tokenId) != address(0)) {
-            revert Errors.ALREADY_RENTED();
-        }
-
-        if (_leaseData[tokenId].status != CarStatus.AVAILABLE) {
-            revert Errors.UNAVAILABLE_RESOURCE();
-        }
-    }
-
     modifier inTime(uint256 tokenId) {
         _inTime(tokenId);
         _;
@@ -125,41 +106,17 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         return tokenId;
     }
 
-    function setCollateral(uint256 tokenId, uint256 collateral)
-        external
-        override
-        onlyOwner
-        onlyAvailable(tokenId)
-    {
-        if (collateral > _carData[tokenId].price) {
-            revert Errors.COLLATERAL_MORE_THAN_PRICE();
+    function rent(uint256 tokenId) external payable override {
+        if (!_exists(tokenId)) {
+            revert Errors.DOES_NOT_EXISTS();
         }
-        _carData[tokenId].collateral = collateral;
-        emit SetCollateral(tokenId, collateral);
-    }
-
-    function setInsuranceShare(uint256 tokenId, uint256 insuranceShare)
-        external
-        override
-        onlyOwner
-        onlyAvailable(tokenId)
-    {
-        if (insuranceShare > 1e18) {
-            revert Errors.SHARE_TOO_BIG();
+        if (consumerOf(tokenId) != address(0)) {
+            revert Errors.ALREADY_RENTED();
         }
-        _carData[tokenId].insuranceShare =
-            (_carData[tokenId].collateral * insuranceShare) /
-            1e18;
+        if (_leaseData[tokenId].status != CarStatus.AVAILABLE) {
+            revert Errors.UNAVAILABLE_RESOURCE();
+        }
 
-        emit SetInsuranceShare(tokenId, insuranceShare);
-    }
-
-    function rent(uint256 tokenId)
-        external
-        payable
-        override
-        onlyAvailable(tokenId)
-    {
         uint256 rentAmount = msg.value - _carData[tokenId].collateral;
         _leaseData[tokenId].rent = rentAmount;
         _leaseData[tokenId].status = CarStatus.RENTED;
@@ -236,9 +193,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             claimer = address(this);
         }
 
-        interestToken.burnInterest(claimer, amount);
-
-        earningsProvider.withdraw(to, amount);
+        uint256 amountBurned = interestToken.burnInterest(claimer, amount);
+        earningsProvider.withdraw(to, amountBurned);
 
         emit ClaimEarnings(claimer, to, amount);
     }
@@ -407,6 +363,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         IEarnStrategy(newProvider).deposit{value: balance}();
         interestToken.setEarningsProvider(newProvider);
     }
+
+    receive() external payable {}
 
     // --------------- Getters ---------------
     function carData(uint256 tokenId)

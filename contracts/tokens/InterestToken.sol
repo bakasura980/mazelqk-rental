@@ -62,6 +62,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         external
         override
         onlyOwner
+        returns (uint256)
     {
         uint256 interestBalance = balanceOf(account);
         if (amount > interestBalance) {
@@ -69,6 +70,7 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         }
 
         _burn(account, amount);
+        return amount;
     }
 
     /// @notice Reusable burn function accounting for interest accrual snapshoting

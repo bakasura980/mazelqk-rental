@@ -16,8 +16,6 @@ interface IVault {
         address insuranceOperator,
         address ownershipContract
     );
-    event SetCollateral(uint256 tokenId, uint256 collateral);
-    event SetInsuranceShare(uint256 tokenId, uint256 insuranceShare);
     event Rent(uint256 tokenId, address renter, uint256 duration);
     event Extend(uint256 tokenId, uint256 duration);
     event Return(
@@ -76,11 +74,6 @@ interface IVault {
         uint256 reviewPeriod,
         address insuranceOperator
     ) external returns (uint256);
-
-    function setCollateral(uint256 tokenId, uint256 collateral) external;
-
-    function setInsuranceShare(uint256 tokenId, uint256 insuranceShare)
-        external;
 
     function rent(uint256 tokenId) external payable;
 
