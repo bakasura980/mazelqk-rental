@@ -6,7 +6,7 @@
 import { ethers } from "hardhat";
 import * as utils from "../utils";
 
-async function main () {
+async function main() {
   const [owner, alice, bob, carl, insuranceDao] = await ethers.getSigners();
 
   const strategyAave = await (
@@ -41,7 +41,7 @@ async function main () {
         ethers.utils.parseEther("60"),
       ],
       ethers.utils.parseEther("50"),
-      "BARZATA_HONDA.JPG.JSON",
+      "./assets/img/219000452_513050559969863_8064805744904538233_n.jpeg",
       ethers.utils.parseEther("5"),
       ethers.utils.parseEther("0.5"),
       2 * 60 * 60 * 24, // 2 day for reviewing

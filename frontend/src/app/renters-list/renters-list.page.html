@@ -27,19 +27,19 @@
   <div>
 
     <ion-list>
-      <ion-item *ngFor="let car of cars; let i = index">
+      <ion-item *ngFor="let car of cars; let i = index" [hidden]="car.status !== 0">
         <ion-avatar slot="start" size="large" class="item-avatar" >
-          <img  [src]="car.image" />
+          <img  [src]="car.tokenURI" />
         </ion-avatar>
         <ion-label>
-          <h2>{{ car.name }}</h2>
+          <h2>Honda Power</h2>
           <h3>I'm a big deal</h3>
           <p>Listen, I have a pretty good car...</p>
         </ion-label>
         <div style="display: flex;flex-direction: column;">
-          <ion-button fill="solid" color="primary" (click)="rent(i + 1)">
+          <ion-button fill="solid" color="primary" (click)="rent(car.index)">
             <ion-icon name="car-outline"></ion-icon>
-            Rent
+            Rent 20ETH
           </ion-button>
         </div>
       </ion-item>

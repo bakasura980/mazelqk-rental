@@ -27,12 +27,12 @@
   <div>
 
     <ion-list>
-      <ion-item *ngFor="let car of cars">
+      <ion-item *ngFor="let car of cars" [hidden]="car.status != 1">
         <ion-avatar slot="start" size="large" class="item-avatar" >
-          <img  [src]="car.image" />
+          <img  [src]="car.tokenURI" />
         </ion-avatar>
         <ion-label>
-          <h2>{{ car.name }}</h2>
+          <h2>HONDA</h2>
           <h3>I'm a big deal</h3>
           <p>Listen, I have a pretty good car...</p>
         </ion-label>
@@ -46,12 +46,12 @@
             [legend]="pieChartLegend">
           </canvas>
 
-          <ion-button fill="solid" color="primary" (click)="rent(10)">
+          <ion-button fill="solid" color="primary" (click)="extend(car.index)">
             <ion-icon name="car-outline"></ion-icon>
             Extend
           </ion-button>
 
-          <ion-button fill="solid" color="primary" (click)="rent(10)">
+          <ion-button fill="solid" color="primary" (click)="headBack(car.index)">
             <ion-icon name="car-outline"></ion-icon>
             Return
           </ion-button>

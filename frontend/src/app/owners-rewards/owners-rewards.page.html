@@ -25,9 +25,28 @@
 <ion-content [fullscreen]="true">
   <!-- <div id="container"> -->
   <div>
+
+    <ion-list>
+      <ion-item *ngFor="let usr of users; let i = index">
+        <ion-avatar slot="start" size="large" class="item-avatar" >
+          <img [src]="usr.img" />
+        </ion-avatar>
+        <ion-label>
+          <h2>{{ usr.address }}</h2>
+          <h3>{{ usr.balance }}</h3>
+          <p></p>
+        </ion-label>
+        <div style="display: flex;flex-direction: column;">
+          <ion-button fill="solid" color="primary">
+            <ion-icon name="car-outline"></ion-icon>
+            Claim Rewards (Comming Soon)
+          </ion-button>
+        </div>
+      </ion-item>
+
+    </ion-list>
     
 
-    <!-- <strong class="capitalize">{{ folder }}</strong>
-    <p>Explore <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a></p> -->
+
   </div>
 </ion-content>

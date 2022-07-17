@@ -25,6 +25,52 @@
 <ion-content [fullscreen]="true">
   <!-- <div id="container"> -->
   <div>
+
+    <ion-list>
+      Returned
+      <ion-item *ngFor="let car of cars; let i = index" [hidden]="car.status !== 2">
+        <ion-avatar slot="start" size="large" class="item-avatar" >
+          <img  [src]="car.tokenURI" />
+        </ion-avatar>
+        <ion-label>
+          <h2>Honda Power</h2>
+          <h3>I'm a big deal</h3>
+          <p>Listen, I have a pretty good car...</p>
+        </ion-label>
+        <div style="display: flex;flex-direction: column;">
+          <ion-button fill="solid" color="primary" (click)="eval(car)">
+            <ion-icon name="car-outline"></ion-icon>
+            Evaluate
+          </ion-button>
+
+          <!-- {{ claimable(car.ownershipContract) }} -->
+        </div>
+      </ion-item>
+
+    </ion-list>
+
+    <ion-list>
+      Damaged
+      <ion-item *ngFor="let car of cars; let i = index" [hidden]="car.status !== 3">
+        <ion-avatar slot="start" size="large" class="item-avatar" >
+          <img  [src]="car.tokenURI" />
+        </ion-avatar>
+        <ion-label>
+          <h2>Honda Power</h2>
+          <h3>I'm a big deal</h3>
+          <p>Listen, I have a pretty good car...</p>
+        </ion-label>
+        <div style="display: flex;flex-direction: column;">
+          <ion-button fill="solid" color="primary" (click)="repair(car)">
+            <ion-icon name="car-outline"></ion-icon>
+            Repair
+          </ion-button>
+
+          <!-- {{ claimable(car.ownershipContract) }} -->
+        </div>
+      </ion-item>
+
+    </ion-list>
     
 
     <!-- <strong class="capitalize">{{ folder }}</strong>

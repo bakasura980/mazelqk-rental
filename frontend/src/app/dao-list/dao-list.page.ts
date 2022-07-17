@@ -10,6 +10,7 @@ export class DaoListPage implements OnInit {
   public folder: string;
   public balance: any;
   public currentAccount: boolean = false;
+  public cars: any = [];
 
   constructor(
     private activatedRoute: ActivatedRoute,
@@ -24,6 +25,15 @@ export class DaoListPage implements OnInit {
     });
     await this.eth.getCurrentUser();
     this.balance = await this.eth.getBalance();
+
+    const cars = await this.eth.getAll();
+    console.log('cars', cars);
+    this.cars = cars;
+
+    for (let index = 0; index < cars.length; index++) {
+      const car = cars[index];
+      car.index = index;
+    }
   }
 
   async connect() {

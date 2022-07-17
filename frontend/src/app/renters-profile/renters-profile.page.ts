@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ChartOptions } from 'chart.js';
+import { ethers } from 'ethers';
 import { EthersService } from '../services/ethers';
 @Component({
   selector: 'app-renters-profile',
@@ -12,13 +13,7 @@ export class RentersProfilePage implements OnInit {
   public balance: any;
   public currentAccount: boolean = false;
 
-  public cars = [
-    {
-      name: 'Dream Honda',
-      image:
-        './assets/img/291873292_789011192285696_7434305738919711337_n.jpeg',
-    },
-  ];
+  public cars = [];
 
   // Pie
   public pieChartOptions: ChartOptions<'pie'> = {
@@ -46,6 +41,27 @@ export class RentersProfilePage implements OnInit {
     });
     await this.eth.getCurrentUser();
     this.balance = await this.eth.getBalance();
+
+    const cars = await this.eth.getAll();
+    console.log('cars', cars);
+    this.cars = cars;
+
+    const currentBLock = await this.eth.blockStamp();
+
+    for (let index = 0; index < cars.length; index++) {
+      const car = cars[index];
+      car.index = index;
+      if (car.status === 1) {
+        console.log(car.start.toString());
+        console.log(car.end.sub(currentBLock).toString());
+      }
+
+      this.pieChartDatasets = [
+        {
+          data: [currentBLock - +car.start, +car.end - currentBLock],
+        },
+      ];
+    }
   }
 
   async connect() {

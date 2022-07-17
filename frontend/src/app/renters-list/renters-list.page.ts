@@ -11,22 +11,7 @@ export class RentersListPage implements OnInit {
   public balance: any;
   public currentAccount: boolean = false;
 
-  public cars = [
-    {
-      name: 'Dream Honda',
-      image:
-        './assets/img/291873292_789011192285696_7434305738919711337_n.jpeg',
-    },
-    {
-      name: 'Dream Honda',
-      image: './assets/img/188185245_783643235671334_344285917940311577_n.jpeg',
-    },
-    {
-      name: 'Dream Honda',
-      image:
-        './assets/img/219000452_513050559969863_8064805744904538233_n.jpeg',
-    },
-  ];
+  public cars: any = [];
 
   constructor(
     private activatedRoute: ActivatedRoute,
@@ -41,6 +26,16 @@ export class RentersListPage implements OnInit {
     });
     await this.eth.getCurrentUser();
     this.balance = await this.eth.getBalance();
+
+    const cars = await this.eth.getAll();
+    for (let index = 0; index < cars.length; index++) {
+      const car = cars[index];
+      car.index = index;
+      if (car.status === 3) {
+      }
+    }
+    console.log('cars', cars);
+    this.cars = cars;
   }
 
   async connect() {

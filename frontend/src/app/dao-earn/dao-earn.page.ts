@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { ethers } from 'ethers';
 import { EthersService } from '../services/ethers';
 @Component({
   selector: 'app-dao-earn',
@@ -11,6 +12,7 @@ export class DaoEarnPage implements OnInit {
   public folder: string;
   public balance: any;
   public currentAccount: boolean = false;
+  public b: any = 0;
 
   public lineChartData: ChartConfiguration<'line'>['data'] = {
     labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
@@ -43,10 +45,15 @@ export class DaoEarnPage implements OnInit {
     });
     await this.eth.getCurrentUser();
     this.balance = await this.eth.getBalance();
+
+    this.bal();
   }
 
   async connect() {
     this.eth.connect();
     this.balance = await this.eth.getBalance();
+  }
+  async bal() {
+    this.b = ethers.utils.formatEther(await this.eth.vaultBal());
   }
 }
