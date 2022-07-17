@@ -64,6 +64,8 @@ describe("Ownership Token", function () {
     expect(after.sub(before).add(gasCost)).to.be.equal(
       amount
     );
+
+    await expect(tx).to.emit(ownershipToken, "Claim").withArgs(alice.address, alice.address, amount);
   });
 
   it("Should revert for excessive amount", async function () {
@@ -71,9 +73,21 @@ describe("Ownership Token", function () {
     await ownershipToken.connect(renter).receiveRent({ value: total });
     let amount = total.mul(await ownershipToken.balanceOf(alice.address)).div(ethers.utils.parseEther("100")).mul(2);
 
-    await expect(ownershipToken.connect(alice).claim(alice.address, amount)).to.be.revertedWith("NOT_ENOUGH_TO_CLAIM");
+    expect(ownershipToken.connect(alice).claim(alice.address, amount)).to.be.revertedWith("NOT_ENOUGH_TO_CLAIM");
   });
 
+  it("Receive rent funds", async function () {
+    let total = ethers.utils.parseEther("1");
 
+    let before = await ownershipToken.rentBalance();
+    let tx = await ownershipToken.connect(renter).receiveRent({ value: total });
+    let after = await ownershipToken.rentBalance();
+
+    expect(after.sub(before)).to.be.equal(
+      total
+    );
+
+    await expect(tx).to.emit(ownershipToken, "ReceiveRent").withArgs(after, total);
+  });
 
 });
