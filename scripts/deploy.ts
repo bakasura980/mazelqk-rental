@@ -25,7 +25,11 @@ async function main () {
       await ethers.getContractFactory("Vault")
     ).deploy(strategyAave.address, ethers.utils.parseEther("0.01"))
   ).deployed();
+  // const vault = await (
+  //   await ethers.getContractFactory("Vault")
+  // ).attach("0x2Bb919fd37169d34cbaD2C8d0fE23a32a5067028");
 
+  console.log("current block", await ethers.provider.getBlockNumber());
   console.log("Vault deployed to:", vault.address);
 
   await (
