@@ -16,8 +16,6 @@ import "./interfaces/strategies/earn-strategies/IEarnStrategy.sol";
 import "./libraries/Errors.sol";
 import "./libraries/TransferHelper.sol";
 
-import "hardhat/console.sol";
-
 contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     uint256 private _tokenCounter;
     uint256 private _perDayFactor;
@@ -239,6 +237,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         earningsProvider.withdraw(to, _carData[tokenId].collateral);
 
+        interestToken.snapshot();
+
         emit ClaimInsurance(msg.sender, to, tokenId);
     }
 
@@ -271,6 +271,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             _carData[tokenId].collateral - incentive
         );
 
+        interestToken.snapshot();
+
         emit Liquidate(tokenId);
     }
 
@@ -298,18 +300,15 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         if (health < 100) {
             _leaseData[tokenId].status = CarStatus.DAMAGED;
-            uint256 recoverAmount = (_carData[tokenId].collateral * health) /
+            uint256 renterAmount = (_carData[tokenId].collateral * health) /
                 100;
 
             earningsProvider.withdraw(
                 _carData[tokenId].insuranceOperator,
-                recoverAmount
+                _carData[tokenId].collateral - renterAmount
             );
 
-            earningsProvider.withdraw(
-                consumerOf(tokenId),
-                _carData[tokenId].collateral - recoverAmount
-            );
+            earningsProvider.withdraw(consumerOf(tokenId), renterAmount);
         } else {
             earningsProvider.withdraw(
                 consumerOf(tokenId),
@@ -317,6 +316,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             );
             _ready(tokenId);
         }
+
+        interestToken.snapshot();
 
         emit DamageReport(tokenId, health);
     }

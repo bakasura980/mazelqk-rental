@@ -70,6 +70,8 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
         }
 
         _burn(account, amount);
+        balanceAtIndex -= amount;
+
         return amount;
     }
 
@@ -83,7 +85,6 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
     {
         _userSnapshot(account);
         super._burn(account, amount);
-        balanceAtIndex -= amount;
     }
 
     /// @notice Creates snapshot
@@ -151,7 +152,6 @@ contract InterestToken is ERC20, Ownable, IInterestToken {
 
         uint256 balancePrev = balanceAtIndex_;
         uint256 balanceNew = IEarnStrategy(earningsProvider).balanceOf();
-
         if (balancePrev > 0 && balancePrev < balanceNew) {
             // Increase the index proportionally to the balances:
             // gain = (new - old) / old
