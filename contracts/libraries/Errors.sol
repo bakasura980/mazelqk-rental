@@ -12,7 +12,7 @@ library Errors {
     error DURATION_TOO_LOW();
     error EXTEND_DURATION_TOO_LOW();
     error STATUS_NOT_RETURNED();
-    error ALREADY_REVIEWED();
+    error STILL_IN_REVIEWED();
     error LEASE_NOT_EXPIRED();
     error NOT_RENTED_TO_BE_LIQUIDATED();
     error CAR_NOT_RETURNED();

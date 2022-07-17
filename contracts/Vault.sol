@@ -162,6 +162,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     {
         uint256 rentAmount = msg.value - _carData[tokenId].collateral;
         _leaseData[tokenId].rent = rentAmount;
+        _leaseData[tokenId].status = CarStatus.RENTED;
 
         uint256 duration = (rentAmount * 1 days * 1e18) /
             (_carData[tokenId].price * _perDayFactor);
@@ -185,17 +186,14 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
 
         earningsProvider.deposit{value: _carData[tokenId].collateral}();
 
-        _carData[tokenId].ownershipContract.receiveRent{value: rentAmount}();
-
         changeConsumer(msg.sender, tokenId);
 
         emit Rent(tokenId, msg.sender, duration);
     }
 
     function extend(uint256 tokenId) external payable override inTime(tokenId) {
-        uint256 duration = (msg.value / _carData[tokenId].price) *
-            _perDayFactor *
-            1 days;
+        uint256 duration = (msg.value * 1 days * 1e18) /
+            (_carData[tokenId].price * _perDayFactor);
 
         if (duration == 0) {
             revert Errors.EXTEND_DURATION_TOO_LOW();
@@ -207,7 +205,6 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
     }
 
     function headBack(uint256 tokenId) external override inTime(tokenId) {
-        changeConsumer(address(0), tokenId);
         _leaseData[tokenId].returned = block.timestamp;
         _leaseData[tokenId].status = CarStatus.RETURNED;
 
@@ -223,6 +220,8 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             _leaseData[tokenId].rent - actualRent
         );
 
+        _carData[tokenId].ownershipContract.receiveRent{value: actualRent}();
+
         emit Return(
             tokenId,
             _leaseData[tokenId].start,
@@ -231,16 +230,17 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
         );
     }
 
-    function claimEarnigns(address to, uint256 amount) external override {
-        uint256 accountBalance = interestToken.balanceOf(msg.sender);
-        if (amount > accountBalance) {
-            amount = accountBalance;
+    function claimEarnings(address to, uint256 amount) external override {
+        address claimer = msg.sender;
+        if (msg.sender == owner()) {
+            claimer = address(this);
         }
-        interestToken.burnInterest(msg.sender, amount);
+
+        interestToken.burnInterest(claimer, amount);
 
         earningsProvider.withdraw(to, amount);
 
-        emit ClaimEarnigns(msg.sender, to, amount);
+        emit ClaimEarnings(claimer, to, amount);
     }
 
     function claimInsurance(address to, uint256 tokenId) external override {
@@ -248,10 +248,10 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             revert Errors.STATUS_NOT_RETURNED();
         }
         if (
-            _leaseData[tokenId].returned + _carData[tokenId].reviewPeriod <=
+            _leaseData[tokenId].returned + _carData[tokenId].reviewPeriod >=
             block.timestamp
         ) {
-            revert Errors.ALREADY_REVIEWED();
+            revert Errors.STILL_IN_REVIEWED();
         }
 
         _leaseData[tokenId].status = CarStatus.DAMAGED;
@@ -266,7 +266,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
             _carData[tokenId].collateral - _carData[tokenId].insuranceShare
         );
 
-        TransferHelper.safeTransferNative(to, _carData[tokenId].collateral);
+        earningsProvider.withdraw(to, _carData[tokenId].collateral);
 
         emit ClaimInsurance(msg.sender, to, tokenId);
     }
@@ -335,7 +335,7 @@ contract Vault is ERC721Enumerable, ERC721Consumable, Ownable, IVault {
                 _carData[tokenId].collateral - recoverAmount
             );
         } else {
-            TransferHelper.safeTransferNative(
+            earningsProvider.withdraw(
                 consumerOf(tokenId),
                 _carData[tokenId].collateral
             );
